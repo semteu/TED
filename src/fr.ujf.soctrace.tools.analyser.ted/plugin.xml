@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+         point="fr.inria.soctrace.framesoc.core.tool">
+      <tool
+            class="fr.ujf.soctrace.tools.analyser.ted.TedEntry"
+            doc="Trace data analysis and comparison"
+            id="fr.ujf.soctrace.tools.analyser.ted"
+            name="TED"
+            type="ANALYSIS">
+      </tool>
+   </extension>
+
+</plugin>
