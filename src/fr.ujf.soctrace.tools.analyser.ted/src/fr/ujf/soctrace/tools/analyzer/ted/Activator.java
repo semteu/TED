@@ -1,4 +1,4 @@
-package fr.ujf.soctrace.tools.analyser.ted;
+package fr.ujf.soctrace.tools.analyzer.ted;
 
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;

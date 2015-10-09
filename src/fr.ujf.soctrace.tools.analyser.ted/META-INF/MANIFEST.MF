@@ -1,9 +1,9 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Ted
-Bundle-SymbolicName: fr.ujf.soctrace.tools.analyser.ted;singleton:=true
+Bundle-SymbolicName: fr.ujf.soctrace.tools.analyzer.ted;singleton:=true
 Bundle-Version: 1.0.0.qualifier
-Bundle-Activator: fr.ujf.soctrace.tools.analyser.ted.Activator
+Bundle-Activator: fr.ujf.soctrace.tools.analyzer.ted.Activator
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
  fr.inria.soctrace.lib.model;bundle-version="1.0.9",

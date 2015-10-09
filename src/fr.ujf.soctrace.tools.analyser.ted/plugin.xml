@@ -4,12 +4,22 @@
    <extension
          point="fr.inria.soctrace.framesoc.core.tool">
       <tool
-            class="fr.ujf.soctrace.tools.analyser.ted.TedEntry"
+            class="fr.ujf.soctrace.tools.analyzer.ted.ui.TedTool"
             doc="Trace data analysis and comparison"
             id="fr.ujf.soctrace.tools.analyser.ted"
             name="TED"
             type="ANALYSIS">
       </tool>
+   </extension>
+   <extension
+         point="org.eclipse.ui.views">
+      <view
+            category="fr.inria.soctrace.framesoc.ui.views.category"
+            class="fr.ujf.soctrace.tools.analyzer.ted.ui.TedMainView"
+            id="fr.ujf.soctrace.tools.analyzer.ted.ui.TedMainView"
+            name="Ted Tool"
+            restorable="true">
+      </view>
    </extension>
 
 </plugin>

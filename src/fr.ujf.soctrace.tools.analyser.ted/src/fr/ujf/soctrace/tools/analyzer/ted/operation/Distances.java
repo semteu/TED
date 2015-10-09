@@ -1,4 +1,4 @@
-package fr.ujf.soctrace.tools.analyser.ted.operation;
+package fr.ujf.soctrace.tools.analyzer.ted.operation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,27 +10,39 @@ import java.util.Set;
 
 import javax.sound.sampled.ReverbType;
 
-import fr.ujf.soctrace.tools.analyser.ted.model.AbstractTimestampedElement;
-import fr.ujf.soctrace.tools.analyser.ted.model.ElementDictionary;
+import fr.inria.soctrace.lib.model.EventType;
+import fr.ujf.soctrace.tools.analyzer.ted.model.TedAdapter;
+import fr.ujf.soctrace.tools.analyzer.ted.model.TedEvent;
+import fr.ujf.soctrace.tools.analyzer.ted.model.TedEventType;
 
 public class Distances {
 	
 	private Map<Integer, Integer> mapStat1;
 	private Map<Integer, Integer> mapStat2;
 	
-	public Map<Integer, Float> OccurenceDistance(float threshold, ElementDictionary traceStats1, ElementDictionary traceStats2){
+	//Component allowing to browse the first trace data
+	private TedAdapter traceAdapter1 = null;
+	
+	//Component allowing to browe the second trace data
+	private TedAdapter traceAdapter2 = null;
+	
+	
+	
+	public Map<Integer, Float> OccurrenceDistance(float threshold, Map<Integer, Integer> occEvents1, Map<Integer, Integer> occEvents2){
 		
-		mapStat1 = traceStats1.getMapIdToNbOccurence();
-		mapStat2 = traceStats2.getMapIdToNbOccurence();
 		Map<Integer, Float> mapOccRatio = new HashMap<Integer, Float>();
+		Set<Integer> keyset = new HashSet<Integer>(occEvents1.keySet());
 		
-		Set<Integer> keyset = mapStat1.keySet();
-		keyset.addAll(mapStat2.keySet());
+		keyset.addAll(occEvents2.keySet());
 		
 		for(Integer key : keyset){
-			float occ_ratio = Math.min(mapStat1.get(key), mapStat2.get(key))/
-					Math.max(mapStat1.get(key), mapStat2.get(key));
+			Integer keyOccEventMap1 = occEvents1.get(key) != null ? occEvents1.get(key): 0;
+			Integer keyOccEventMap2 = occEvents2.get(key) != null ? occEvents2.get(key): 0;
 			
+			
+			float occ_ratio = Math.min(keyOccEventMap1, keyOccEventMap2)/(float)
+					Math.max(keyOccEventMap1, keyOccEventMap2);
+			System.out.println("key: " + key + ", occ_ratio: " + occ_ratio);
 			if(occ_ratio > threshold)
 				mapOccRatio.put(key, new Float(occ_ratio));
 		}
@@ -39,13 +51,10 @@ public class Distances {
 		
 	}
 	
-	public Set<Integer> droppingDistance(ElementDictionary traceStats1, ElementDictionary traceStats2){
+	public Set<Integer> droppingDistance(float threshold, Map<Integer, Integer> occEvents1, Map<Integer, Integer> occEvents2){
 	
-		mapStat1 = traceStats1.getMapIdToNbOccurence();
-		mapStat2 = traceStats2.getMapIdToNbOccurence();
-		
-		Set<Integer> keyset1 = mapStat1.keySet();
-		Set<Integer> keyset2 = mapStat2.keySet();
+		Set<Integer> keyset1 = new HashSet<Integer>(occEvents1.keySet());
+		Set<Integer> keyset2 = new HashSet<Integer>(occEvents2.keySet());
 		Set<Integer> unionKeyset = new HashSet<Integer>();
 		Set<Integer> intersectKeyset = new HashSet<Integer>();
 		
@@ -59,69 +68,67 @@ public class Distances {
 		
 		
 	}
-	
-	private double getWeight(AbstractTimestampedElement element, ElementDictionary traceDico){
-		if(traceDico.getMapElementToId().containsKey(element.getElement())){
-			Integer elementId = traceDico.getMapElementToId().get(element.getElement());
-			if(traceDico.getMapIdToNbOccurence().get(elementId) != 0){
-				return 1/traceDico.getMapIdToNbOccurence().get(elementId);
-			}
-		}
-			
-		return (double)(1.5);
+
+	private double getWeight(TedEvent e, Map<Integer, Integer> mapEventIdToOcc){
+		Integer occ = mapEventIdToOcc.get(e.getEventType().getId()); 
+		if(occ != null && occ != 0)
+			return 1/(double)occ;
+		return (double)1.5;
 	}
 	
-	public double temporalDistance( List<AbstractTimestampedElement> traceEvents1,
-									List<AbstractTimestampedElement> traceEvents2){
+	public List< ArrayList<Double> > temporalDistance(  List<TedEvent> trace1,
+														List<TedEvent> trace2,
+														Map<Integer, Integer> mapEventIdToOcc1,
+														Map<Integer, Integer> mapEventIdToOcc2){
 		
-		ElementDictionary traceDico1 = new ElementDictionary(traceEvents1);
-		ElementDictionary traceDico2 = new ElementDictionary(traceEvents2);
-				
-		List< ArrayList<Double> > dists = new ArrayList< ArrayList<Double> >();
+		List< ArrayList<Double> > distances = new ArrayList< ArrayList<Double> >();
 		
-		for(int i = 0; i < traceEvents1.size(); i++){
-			for (int j = 0; j < traceEvents2.size(); j++){
-				dists.get(i).set(j, 0.);
+		//Initialization of the table used by dynamic programming
+		for(int i = 0; i < trace1.size() + 1; i++){
+			ArrayList<Double> vec = new ArrayList<Double>(); 
+			for(int j = 0; j < trace2.size() + 1; j++){
+				vec.add(0.);
 			}
+			distances.add(vec);
 		}
 		
+				
 		int i = 1;
-		for(AbstractTimestampedElement element: traceEvents1){
-			dists.get(i).set(0, dists.get(i - 1).get(0) + getWeight(element, traceDico1));
+		for(TedEvent event: trace1){
+			(distances.get(i)).set(0, (distances.get(i-1)).get(0) + getWeight(event, mapEventIdToOcc1));
+			i++;
 		}
 		
 		int j = 1;
-		for(AbstractTimestampedElement element: traceEvents2){
-			dists.get(0).set(j, dists.get(0).get(j - 1) + getWeight(element, traceDico2));
+		for(TedEvent event: trace2){
+			distances.get(0).set(j, distances.get(0).get(j-1) + getWeight(event, mapEventIdToOcc2));
+			j++;
 		}
 		
 		double v = 0;
 		double k = 0;
-		int t1 = traceEvents1.get(0).getTimestamp(); 
-		int t2 = traceEvents2.get(0).getTimestamp();
-
-		for(i = 1; i < traceEvents1.size(); i++){
-			for(j = 1; j < traceEvents2.size(); j++){
-				if(traceEvents1.get(i-1).getElement().equals(traceEvents2.get(j-1).getElement())){
-					if(i != 1){
-						v = 1.5 * getWeight(traceEvents2.get(i-1), traceDico1);
-						k = v * Math.abs(Math.abs(traceEvents2.get(j-1).getTimestamp() - traceEvents2.get(j-2).getTimestamp()) 
-								- Math.abs(t1 - t2));
-					}
-					else
-						k = 0;					
+		
+		long ts1 = trace1.get(0).getTimestamp();
+		long ts2 = trace2.get(0).getTimestamp();
+		
+		for(i = 1; i < trace1.size() + 1; i++){
+			for(j = 1; j < trace2.size() + 1; j++){				
+				if(trace1.get(i-1).getEventType().getId() == trace2.get(j-1).getEventType().getId()){
+					v = (getWeight(trace1.get(i-1), mapEventIdToOcc1) + getWeight(trace2.get(j-1), mapEventIdToOcc2))/2.;
+					k = v * Math.abs(Math.abs(trace1.get(i-1).getTimestamp() - trace2.get(j-1).getTimestamp()) 
+								- Math.abs(ts1 - ts2));
 				}
 				else{
-					k = getWeight(traceEvents1.get(i - 1), traceDico1) 
-							+ getWeight(traceEvents2.get(j -1), traceDico2); 
+					k = getWeight(trace1.get(i - 1), mapEventIdToOcc1) 
+							+ getWeight(trace2.get(j -1), mapEventIdToOcc2); 
 				}
-			}
-			
-			dists.get(i).set(j, Math.min(dists.get(i-1).get(j) + getWeight(traceEvents1.get(i-1), traceDico1), 
-					Math.min(dists.get(i).get(j-1) + getWeight(traceEvents2.get(j-1), traceDico2), 
-							dists.get(i-1).get(j-1) + k)));			
+				
+				distances.get(i).set(j, Math.min(distances.get(i-1).get(j) + getWeight(trace1.get(i-1), mapEventIdToOcc1), 
+						Math.min(distances.get(i).get(j-1) + getWeight(trace2.get(j-1), mapEventIdToOcc2),
+								 distances.get(i-1).get(j-1) + k)));
+			}			
 		}
-		return dists.get(traceEvents1.size()).get(traceEvents2.size());		
+		return distances;		
 	}
-
+	
 }
