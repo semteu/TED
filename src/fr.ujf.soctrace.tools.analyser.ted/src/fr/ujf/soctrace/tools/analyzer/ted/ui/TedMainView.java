@@ -1,10 +1,13 @@
 package fr.ujf.soctrace.tools.analyzer.ted.ui;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+
+import javax.xml.crypto.Data;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -16,6 +19,7 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -32,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.inria.soctrace.framesoc.core.FramesocManager;
+import fr.inria.soctrace.framesoc.ui.model.FolderNode;
 import fr.inria.soctrace.framesoc.ui.providers.TreeContentProvider;
 import fr.inria.soctrace.framesoc.ui.providers.TreeLabelProvider;
 import fr.inria.soctrace.lib.model.Tool;
@@ -47,10 +52,12 @@ import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput.InputStatus;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput.Operation;
+import fr.ujf.soctrace.tools.analyzer.ted.model.DataNode;
 import fr.ujf.soctrace.tools.analyzer.ted.model.GStreamerTedAdapter;
 import fr.ujf.soctrace.tools.analyzer.ted.model.GStreamerTedIterator;
+import fr.ujf.soctrace.tools.analyzer.ted.model.KPTraceTedAdapter;
+import fr.ujf.soctrace.tools.analyzer.ted.model.KPTraceTedIterator;
 import fr.ujf.soctrace.tools.analyzer.ted.model.TedAdapter;
-import fr.ujf.soctrace.tools.analyzer.ted.model.TedEvent;
 import fr.ujf.soctrace.tools.analyzer.ted.operation.TedProcessor;
 
 
@@ -123,6 +130,8 @@ public class TedMainView extends ViewPart {
 	private Text txtDecision; 
 	
 	
+	private DataNode treeNode;
+	
 	
 	Display display = Display.getCurrent();
 	Color blue = display.getSystemColor(SWT.COLOR_BLUE);
@@ -164,6 +173,8 @@ public class TedMainView extends ViewPart {
 				e.printStackTrace();
 			}
 		}
+		
+		treeNode = new DataNode("");
 		
 	}
 
@@ -219,7 +230,6 @@ public class TedMainView extends ViewPart {
 		
 		cmbRefTrace = new Combo(cmpLeftPart, SWT.READ_ONLY);
 		cmbRefTrace.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
-//		cmbRefTrace.addSelectionListener(new TraceChangeSelectionAdapter());
 		
 		lblDiagTrace = new Label(cmpLeftPart, SWT.NONE);
 		lblDiagTrace.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
@@ -295,16 +305,16 @@ public class TedMainView extends ViewPart {
 		cmpRightPart.setLayout(new GridLayout(2,false));
 		
 		lblProcessingView = new Label(cmpRightPart, SWT.NONE);
-		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.TOP, true, false, 2, 1));
+		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
 		lblProcessingView.setText("Processing View");
 		
-		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL);
+		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
 		GridData gData =  new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
 		gData.heightHint = MAX_NUMBER_LINES * txtProcessingView.getLineHeight();
 		txtProcessingView.setLayoutData(gData);
 
 		lblResults = new Label(cmpRightPart, SWT.NONE);
-		lblResults.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
+		lblResults.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
 		lblResults.setText("Results");
 		
 		treeviewResults = new TreeViewer(cmpRightPart, SWT.BORDER);
@@ -356,8 +366,10 @@ public class TedMainView extends ViewPart {
 		btnTempDistance.setSelection(false);
 		txtThreshold.setText("0");
 		treeviewResults.setInput(null);
+		treeviewResults.refresh();
 		txtProcessingView.setText("");
 		txtDecision.setText("");
+		lblResults.setText("Results");
 		
 	}
 	
@@ -384,32 +396,43 @@ public class TedMainView extends ViewPart {
 		if(currentInput.diagTrace == null)
 			return InputStatus.INPUT_NO_DIAGTRACE;
 		
+		currentInput.threshold = Float.valueOf(txtThreshold.getText());
+		
 		//TODO: Check if refTrace and diagTrace are the same type
 		
 		if(btnOccDistance.getSelection()){
+			if(currentInput.threshold <= 0)
+				return InputStatus.INPUT_BAD_THRESHOLD;
+			
 			currentInput.operation = Operation.OCCURRENCE_DISTANCE;
 		}
 		else if(btnDropDistance.getSelection()){
+			if(currentInput.threshold < 0)
+				return InputStatus.INPUT_BAD_THRESHOLD;
+			
 			currentInput.operation = Operation.DROPPING_DISTANCE;
 		}
 		else if(btnTempDistance.getSelection()){
+			if(currentInput.threshold < 0)
+				return InputStatus.INPUT_BAD_THRESHOLD;
+			
 			currentInput.operation = Operation.TEMPORAL_DISTANCE;
 		}
 		else if (btnAnyAnomaly.getSelection()) {
+			if(currentInput.threshold <= 0)
+				return InputStatus.INPUT_BAD_THRESHOLD;
+			
 			currentInput.operation = Operation.ANY_DISTANCE;
 		}
 		else if (btnAllAnomalies.getSelection()) {
+			if(currentInput.threshold <= 0)
+				return InputStatus.INPUT_BAD_THRESHOLD;
+			
 			currentInput.operation = Operation.ALL_DISTANCE;
 		}
 		else {
 			return InputStatus.INPUT_NO_OPERATIONSELECTED;
 		}
-		
-		currentInput.threshold = Float.valueOf(txtThreshold.getText());
-		
-		if(currentInput.threshold <= 0)
-			return InputStatus.INPUT_BAD_THRESHOLD;
-		
 		
 		return InputStatus.INPUT_OK;
 		
@@ -451,12 +474,14 @@ public class TedMainView extends ViewPart {
 		}
 		else if (inputStatus == InputStatus.INPUT_BAD_THRESHOLD) {
 			MessageDialog.openError(getSite().getShell(), "Parameter Error",
-					"Bad threshold provided !");
+					"Bad threshold provided ! " + txtThreshold.getText().length());
+			txtThreshold.selectAll();
 			txtThreshold.setFocus();
 			return;
 		}
 		
-		
+		txtProcessingView.setText("");
+		txtDecision.setText("");
 		//Launch TED algorithm processing
 		//Launch a new job
 		
@@ -479,12 +504,15 @@ public class TedMainView extends ViewPart {
 					traceDB2 = TraceDBObject.openNewInstance(currentInput.diagTrace.getDbName());
 					currentInput.diagAdapter = loadNewAdapter(traceDB2, currentInput.diagTrace);
 					
+					treeNode = new DataNode("");
+					
 //					while(currentInput.refAdapter.hasNext()){
 //						TedEvent tedEvent = currentInput.refAdapter.getNext();
 //						System.out.println(tedEvent);
 //					}
 					
-					final TedProcessor processor = new TedProcessor(currentInput);
+					final TedProcessor processor = new TedProcessor(currentInput, txtProcessingView,
+							txtDecision, treeNode);
 					
 					final TedStatus status = processor.run(monitor);
 
@@ -503,15 +531,29 @@ public class TedMainView extends ViewPart {
 					adapterClear(currentInput.refAdapter);
 					DBObject.finalClose(traceDB2);
 					adapterClear(currentInput.diagAdapter);
-					Display.getDefault().syncExec(new Runnable() {
-						@Override
-						public void run() {
-						}
-					});
+//					Display.getDefault().syncExec(new Runnable() {
+//						@Override
+//						public void run() {
+//						}
+//					});
 				}
 				
-				return Status.OK_STATUS;
+				
+				Display.getDefault().syncExec(new Runnable() {
+				
+					@Override
+					public void run() {
+						lblResults.setText("Comparison results between " + currentInput.refTrace.getAlias() +
+								" and " + currentInput.diagTrace.getAlias());
+						updateTreeViewResults();
 
+					}
+				});
+
+
+
+				
+				return Status.OK_STATUS;
 				
 			}
 			
@@ -519,7 +561,6 @@ public class TedMainView extends ViewPart {
 		
 		job.setUser(true);
 		job.schedule();
-		
 		
 	}
 	
@@ -534,8 +575,8 @@ public class TedMainView extends ViewPart {
 			adapter = new GStreamerTedAdapter(traceDB, iterator);
 		} else if (trace.getType().getName().startsWith("com.st.framesoc.kptrace")
 				|| trace.getType().getName().startsWith("KPTrace")) {
-//			iterator = new KPTraceFMIterator(traceDB);
-//			adapter = new KPTraceFMAdapter(traceDB, iterator);
+			iterator = new KPTraceTedIterator(traceDB);
+			adapter = new KPTraceTedAdapter(traceDB, iterator);
 		} else {
 			// Defaut adapter is KPTrace
 			iterator = new GStreamerTedIterator(traceDB);
@@ -592,17 +633,31 @@ public class TedMainView extends ViewPart {
 			Entry<Integer, Trace> entry = itMapTrace.next();
 			combo.add(entry.getValue().getAlias(), entry.getKey());
 		}
+	}
+	
+	private void constructTree(DataNode tree){
+		
+		DataNode root = new DataNode("Distance N°1");
+		for(int i = 0; i < 10; i++){
+			DataNode child = new DataNode("Event "+ i);
+			root.addChild(child);
+		}
+		tree.addChild(root);		
+	}
+	
+	private DataNode[] adapt(DataNode tree){
+		DataNode[] trees = new DataNode[1];
+		trees[0] = tree;
+		return trees;
+	}
+	
+	private void updateTreeViewResults(){
+		System.out.println(treeNode);
+		treeviewResults.setInput(adapt(treeNode));
+		treeviewResults.refresh();
+		System.out.println(treeNode);
 		
 	}
 	
-	public class TraceChangeSelection extends SelectionAdapter{
-		
-		@Override
-		public void widgetSelected(SelectionEvent e){
-			
-			
-		}
-		
-	}
 
 }
