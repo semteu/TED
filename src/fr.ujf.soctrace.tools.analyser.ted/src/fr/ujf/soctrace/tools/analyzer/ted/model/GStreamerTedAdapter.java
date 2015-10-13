@@ -42,7 +42,7 @@ public class GStreamerTedAdapter extends TedBaseAdapter {
 		while(itMapEventTypes.hasNext()){
 			Entry<Integer, IModelElement> entry = itMapEventTypes.next();
 			Integer eventId = (Integer) entry.getKey();
-			mapTedEventId2TedEventType.put(eventId, new TedEventType(eventId, ((EventType)entry.getValue()).getName()));
+			mapTedEventIdToTedEventType.put(eventId, new TedEventType(eventId, ((EventType)entry.getValue()).getName()));
 		}
 	}
 
