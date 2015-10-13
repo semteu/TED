@@ -40,12 +40,12 @@ public abstract class TedBaseAdapter implements TedAdapter {
 	/**
 	 * TedEventType id <-> FrameSoC event instance id
 	 */
-	private Map<Integer, Integer> mapTedEventId2EventId= new HashMap<Integer, Integer>();
+	private Map<Integer, Integer> mapTedEventIdToEventId= new HashMap<Integer, Integer>();
 	
 	/**
 	 * TedEvent id <-> TedEventType
 	 */
-	protected Map<Integer, TedEventType> mapTedEventId2TedEventType = new HashMap<Integer, TedEventType>();	
+	protected Map<Integer, TedEventType> mapTedEventIdToTedEventType = new HashMap<Integer, TedEventType>();	
 	
 	/**
 	 * Trace DB Object 
@@ -81,8 +81,8 @@ public abstract class TedBaseAdapter implements TedAdapter {
 			return null;
 		// manage mapping with event
 		TedEvent tEvent = adapt(e);
-		if (!mapTedEventId2EventId.containsKey(tEvent.getEventType().getId()))
-			mapTedEventId2EventId.put(tEvent.getEventType().getId(), e.getId());
+		if (!mapTedEventIdToEventId.containsKey(tEvent.getEventType().getId()))
+			mapTedEventIdToEventId.put(tEvent.getEventType().getId(), e.getId());
 		return tEvent;
 	}
 
@@ -108,7 +108,7 @@ public abstract class TedBaseAdapter implements TedAdapter {
 			loadMapping();
 			mappingLoaded = true;
 		}
-		return mapTedEventId2TedEventType;
+		return mapTedEventIdToTedEventType;
 	}
 
 	@Override
@@ -118,9 +118,9 @@ public abstract class TedBaseAdapter implements TedAdapter {
 		ValueListString vls = new ValueListString();
 		Map<Integer, Integer> revMap = new HashMap<Integer, Integer>();
 		for (TedEventType evType: tedEventTypes) {
-			if (!mapTedEventId2EventId.containsKey(evType.getId()))
+			if (!mapTedEventIdToEventId.containsKey(evType.getId()))
 				continue;
-			Integer eid = mapTedEventId2EventId.get(evType.getId());
+			Integer eid = mapTedEventIdToEventId.get(evType.getId());
 			vls.addValue(String.valueOf(eid));
 			revMap.put(eid, evType.getId());
 		}

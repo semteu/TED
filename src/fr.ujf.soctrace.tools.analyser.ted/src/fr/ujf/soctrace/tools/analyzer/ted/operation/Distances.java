@@ -3,30 +3,13 @@ package fr.ujf.soctrace.tools.analyzer.ted.operation;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.sound.sampled.ReverbType;
-
-import fr.inria.soctrace.lib.model.EventType;
-import fr.ujf.soctrace.tools.analyzer.ted.model.TedAdapter;
 import fr.ujf.soctrace.tools.analyzer.ted.model.TedEvent;
-import fr.ujf.soctrace.tools.analyzer.ted.model.TedEventType;
 
 public class Distances {
-	
-	private Map<Integer, Integer> mapStat1;
-	private Map<Integer, Integer> mapStat2;
-	
-	//Component allowing to browse the first trace data
-	private TedAdapter traceAdapter1 = null;
-	
-	//Component allowing to browe the second trace data
-	private TedAdapter traceAdapter2 = null;
-	
-	
 	
 	public Map<Integer, Float> OccurrenceDistance(float threshold, Map<Integer, Integer> occEvents1, Map<Integer, Integer> occEvents2){
 		
@@ -42,8 +25,8 @@ public class Distances {
 			
 			float occ_ratio = Math.min(keyOccEventMap1, keyOccEventMap2)/(float)
 					Math.max(keyOccEventMap1, keyOccEventMap2);
-			System.out.println("key: " + key + ", occ_ratio: " + occ_ratio);
-			if(occ_ratio > threshold)
+//			System.out.println("key: " + key + ", occ_ratio: " + occ_ratio);
+			if(occ_ratio <= threshold)
 				mapOccRatio.put(key, new Float(occ_ratio));
 		}
 		
