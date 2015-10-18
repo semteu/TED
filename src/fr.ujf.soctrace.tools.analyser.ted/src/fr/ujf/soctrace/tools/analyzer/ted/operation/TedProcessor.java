@@ -8,6 +8,7 @@ package fr.ujf.soctrace.tools.analyzer.ted.operation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -157,8 +158,8 @@ public class TedProcessor {
 		
 		loadEventLists();
 		
-		System.out.println("Size trace1: "+ eventTrace1.size());
-		System.out.println("Size trace2: "+ eventTrace2.size());
+//		System.out.println("Size trace1: "+ eventTrace1.size());
+//		System.out.println("Size trace2: "+ eventTrace2.size());
 		
 		switch (tedInput.operation) {
 		
@@ -208,8 +209,6 @@ public class TedProcessor {
 			System.out.println("Operation not yet implemented !");
 			break;
 		}
-		
-		System.out.println(statusOccDist + " " + statusDropDist +" " + statusTempDist);
 		
 		if(statusOccDist && statusDropDist && statusTempDist){
 			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation, crash and Slow stream anomalies");
@@ -430,11 +429,11 @@ public class TedProcessor {
 	private boolean processOccurrenceDistance(){
 		boolean status = false;
 		sendToConsole("Processing occurrence distance ...");
-		System.out.println("Executing occurrence distance ...");
+//		System.out.println("Executing occurrence distance ...");
 		occResults = distanceProcessor.OccurrenceDistance(tedInput.threshold, 
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
-		System.out.println(occResults);
+//		System.out.println(occResults);
 		
 		sendToConsole("Results: " + occResults);
 		
@@ -454,7 +453,7 @@ public class TedProcessor {
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
 		sendToConsole("Results: " + dropResults);
-		System.out.println(dropResults);
+//		System.out.println(dropResults);
 		
 		if(dropResults.size() > 0)
 			status = true;
@@ -467,13 +466,14 @@ public class TedProcessor {
 		sendToConsole("Processing temporal distance ...");
 //		System.out.println("Executing temporal distance ...");
 		tempResults = distanceProcessor.temporalDistance(eventTrace1, 
-				eventTrace1, mapEventId2OccTrace1, mapEventId2OccTrace2);
+				eventTrace2, mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
-		sendToConsole("Results: " + tempResults);
-		System.out.println(tempResults);
-		
-		System.out.println("Temporal distance: " + tempResults.get(eventTrace1.size()).
+		sendToConsole("Results: " + tempResults.get(eventTrace1.size()).
 				get(eventTrace2.size()));
+//		System.out.println(tempResults);
+		
+//		System.out.println("Temporal distance: " + tempResults.get(eventTrace1.size()).
+//				get(eventTrace2.size()));
 		if(tempResults.get(eventTrace1.size()).get(eventTrace2.size()) > tedInput.threshold)
 			status = true;
 		
@@ -518,14 +518,42 @@ public class TedProcessor {
 	
 	private void makeTreeResultsFromDroppingDistance(DataNode tree){
 		DataNode root = new DataNode(NodeType.OPERATION, "Dropping distance");
-		String value = "|{";
-		for(Integer e: dropResults){
-			 value += mapEventId2EventDesc.get(e) + ", ";
-			
+		
+		Set<Integer> keyset1 = new HashSet<Integer>(mapEventId2OccTrace1.keySet());
+		Set<Integer> keyset2 = new HashSet<Integer>(mapEventId2OccTrace2.keySet());
+		Set<Integer> set1 = new HashSet<Integer>();
+		Set<Integer> set2 = new HashSet<Integer>();
+		
+		set1.addAll(dropResults);
+		set1.retainAll(keyset1);
+		
+		set2.addAll(dropResults);
+		set2.retainAll(keyset2);
+		
+//		String value = "|{";
+//		for(Integer e: dropResults){
+//			 value += mapEventId2EventDesc.get(e) + ", ";
+//			
+//		}
+		
+		String value = "Events in trace1 not in trace2: ";
+		for(Integer eid: set1){
+			value += mapEventId2EventDesc.get(eid)+ ", ";
 		}
-		value += "}| = " + dropResults.size();
 		DataNode child = new DataNode(value);
 		root.addChild(child);
+		
+		value = "Events in trace2 not in trace1: ";
+		for(Integer eid: set2){
+			value += mapEventId2EventDesc.get(eid)+ ", ";
+		}
+		child = new DataNode(value);
+		root.addChild(child);
+		
+		value = "distance = " + dropResults.size();
+		child = new DataNode(value);
+		root.addChild(child);
+		
 		tree.addChild(root);
 	}
 	

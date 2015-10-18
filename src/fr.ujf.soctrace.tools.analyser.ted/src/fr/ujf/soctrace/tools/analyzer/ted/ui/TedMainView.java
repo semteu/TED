@@ -151,6 +151,17 @@ public class TedMainView extends ViewPart {
 		currentInput = new TedInput();
 		
 		//Loading data
+		loadingDataFromFramesoc();
+		
+		treeNode = null;
+		
+	}
+	
+	/**
+	 * This method allow to connect to Framesoc database and to load main data
+	 * like trace list
+	 */
+	private void loadingDataFromFramesoc(){
 		ITraceSearch search = null;
 		try {
 			if (!FramesocManager.getInstance().isSystemDBExisting())
@@ -173,9 +184,6 @@ public class TedMainView extends ViewPart {
 				e.printStackTrace();
 			}
 		}
-		
-		treeNode = new DataNode("");
-		
 	}
 
 	/**
@@ -356,6 +364,8 @@ public class TedMainView extends ViewPart {
 	
 	private void initializeView(){
 		
+		loadingDataFromFramesoc();
+		
 		initializeTraceCombo(cmbRefTrace);
 		initializeTraceCombo(cmbDiagTrace);
 		
@@ -395,6 +405,9 @@ public class TedMainView extends ViewPart {
 		currentInput.diagTrace = getTrace(cmbDiagTrace);
 		if(currentInput.diagTrace == null)
 			return InputStatus.INPUT_NO_DIAGTRACE;
+		
+		if(currentInput.refTrace.getType().getId() != currentInput.diagTrace.getType().getId())
+			return InputStatus.INPUT_DIFF_TRACETYPE;
 		
 		currentInput.threshold = Float.valueOf(txtThreshold.getText());
 		
@@ -467,6 +480,12 @@ public class TedMainView extends ViewPart {
 			cmbDiagTrace.setFocus();
 			return;
 		}
+		else if(inputStatus == InputStatus.INPUT_DIFF_TRACETYPE){
+			MessageDialog.openError(getSite().getShell(), "Parameter Error", 
+					"The traces selected are not the same type !");
+			cmbRefTrace.setFocus();
+			return;
+		}
 		else if (inputStatus == InputStatus.INPUT_NO_OPERATIONSELECTED) {
 			MessageDialog.openError(getSite().getShell(), "Parameter Error",
 					"No comparison operator selected !");
@@ -474,7 +493,7 @@ public class TedMainView extends ViewPart {
 		}
 		else if (inputStatus == InputStatus.INPUT_BAD_THRESHOLD) {
 			MessageDialog.openError(getSite().getShell(), "Parameter Error",
-					"Bad threshold provided ! " + txtThreshold.getText().length());
+					"Bad threshold provided ! ");
 			txtThreshold.selectAll();
 			txtThreshold.setFocus();
 			return;
@@ -504,7 +523,7 @@ public class TedMainView extends ViewPart {
 					traceDB2 = TraceDBObject.openNewInstance(currentInput.diagTrace.getDbName());
 					currentInput.diagAdapter = loadNewAdapter(traceDB2, currentInput.diagTrace);
 					
-					treeNode = new DataNode("");
+					treeNode = new DataNode("Comparison results");
 					
 //					while(currentInput.refAdapter.hasNext()){
 //						TedEvent tedEvent = currentInput.refAdapter.getNext();
@@ -635,16 +654,6 @@ public class TedMainView extends ViewPart {
 		}
 	}
 	
-	private void constructTree(DataNode tree){
-		
-		DataNode root = new DataNode("Distance N°1");
-		for(int i = 0; i < 10; i++){
-			DataNode child = new DataNode("Event "+ i);
-			root.addChild(child);
-		}
-		tree.addChild(root);		
-	}
-	
 	private DataNode[] adapt(DataNode tree){
 		DataNode[] trees = new DataNode[1];
 		trees[0] = tree;
@@ -652,10 +661,10 @@ public class TedMainView extends ViewPart {
 	}
 	
 	private void updateTreeViewResults(){
-		System.out.println(treeNode);
+//		System.out.println(treeNode);
 		treeviewResults.setInput(adapt(treeNode));
 		treeviewResults.refresh();
-		System.out.println(treeNode);
+//		System.out.println(treeNode);
 		
 	}
 	
