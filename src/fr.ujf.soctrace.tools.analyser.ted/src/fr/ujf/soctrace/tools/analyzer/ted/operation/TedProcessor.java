@@ -501,7 +501,7 @@ public class TedProcessor {
 	}	
 	
 	
-	private void sendToConsole(String message){
+	private void sendToConsole(final String message){
 		Display.getDefault().syncExec(new Runnable() {
 			
 			@Override
@@ -512,7 +512,7 @@ public class TedProcessor {
 		});
 	}
 	
-	private void sendToDecisionComponent(String message){
+	private void sendToDecisionComponent(final String message){
 		Display.getDefault().syncExec(new Runnable() {
 			
 			@Override
