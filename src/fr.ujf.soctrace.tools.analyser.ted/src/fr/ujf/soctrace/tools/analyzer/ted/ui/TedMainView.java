@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.TreeMap;
 
 import javax.xml.crypto.Data;
@@ -32,6 +33,14 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.ui.part.ViewPart;
+import org.jfree.chart.JFreeChart;
+import org.jfree.data.category.CategoryDataset;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.general.DefaultPieDataset;
+import org.jfree.data.general.PieDataset;
+import org.jfree.data.statistics.HistogramDataset;
+import org.jfree.data.statistics.HistogramType;
+import org.jfree.experimental.chart.swt.ChartComposite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +58,7 @@ import fr.inria.soctrace.lib.search.ITraceSearch;
 import fr.inria.soctrace.lib.search.TraceSearch;
 import fr.inria.soctrace.lib.storage.DBObject;
 import fr.inria.soctrace.lib.storage.TraceDBObject;
+import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBartChartLoader;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedConstants;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
@@ -133,6 +143,8 @@ public class TedMainView extends ViewPart {
 	private TreeViewer treeviewResults;
 	private Text txtDecision; 
 	
+	
+	private ChartComposite chartView;
 	
 	private DataNode treeNode;
 	
@@ -324,15 +336,6 @@ public class TedMainView extends ViewPart {
 		Composite cmpRightPart = new Composite(parent, SWT.NONE);
 		cmpRightPart.setLayout(new GridLayout(2,false));
 		
-		lblProcessingView = new Label(cmpRightPart, SWT.NONE);
-		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
-		lblProcessingView.setText("Processing View");
-		
-		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
-		GridData gData =  new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
-		gData.heightHint = MAX_NUMBER_LINES * txtProcessingView.getLineHeight();
-		txtProcessingView.setLayoutData(gData);
-
 		lblResults = new Label(cmpRightPart, SWT.NONE);
 		lblResults.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1));
 		lblResults.setText("Results");
@@ -350,6 +353,23 @@ public class TedMainView extends ViewPart {
 		txtDecision = new Text(cmpRightPart, SWT.CENTER | SWT.READ_ONLY);
 		txtDecision.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 		txtDecision.setText("");
+		
+		lblProcessingView = new Label(cmpRightPart, SWT.NONE);
+		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
+		lblProcessingView.setText("Processing View");
+		
+//		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
+//		GridData gData =  new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
+//		gData.heightHint = MAX_NUMBER_LINES * txtProcessingView.getLineHeight();
+//		txtProcessingView.setLayoutData(gData);
+
+		StackedBartChartLoader st = new StackedBartChartLoader();		
+		final JFreeChart chart = st.createChart(createDataset());
+		chartView = new ChartComposite(cmpRightPart, SWT.NONE);
+		chartView.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
+		chartView.setChart(chart);
+		
+		
 		
 		Composite cmpCommandLayout = new Composite(cmpRightPart, SWT.NONE);
 		cmpCommandLayout.setLayout(new GridLayout(2, false));
@@ -374,6 +394,58 @@ public class TedMainView extends ViewPart {
 				
 	}
 	
+   /**
+     * Creates a sample dataset.
+     * 
+     * @return A sample dataset.
+     */
+    public CategoryDataset createDataset() {
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
+        dataset.addValue(20.3, "Product 1 (US)", "Jan 04");
+        dataset.addValue(27.2, "Product 1 (US)", "Feb 04");
+        dataset.addValue(19.7, "Product 1 (US)", "Mar 04");
+        dataset.addValue(19.4, "Product 1 (Europe)", "Jan 04");
+        dataset.addValue(10.9, "Product 1 (Europe)", "Feb 04");
+        dataset.addValue(18.4, "Product 1 (Europe)", "Mar 04");
+        dataset.addValue(16.5, "Product 1 (Asia)", "Jan 04");
+        dataset.addValue(15.9, "Product 1 (Asia)", "Feb 04");
+        dataset.addValue(16.1, "Product 1 (Asia)", "Mar 04");
+        dataset.addValue(13.2, "Product 1 (Middle East)", "Jan 04");
+        dataset.addValue(14.4, "Product 1 (Middle East)", "Feb 04");
+        dataset.addValue(13.7, "Product 1 (Middle East)", "Mar 04");
+
+        dataset.addValue(23.3, "Product 2 (US)", "Jan 04");
+        dataset.addValue(16.2, "Product 2 (US)", "Feb 04");
+        dataset.addValue(28.7, "Product 2 (US)", "Mar 04");
+        dataset.addValue(12.7, "Product 2 (Europe)", "Jan 04");
+        dataset.addValue(17.9, "Product 2 (Europe)", "Feb 04");
+        dataset.addValue(12.6, "Product 2 (Europe)", "Mar 04");
+        dataset.addValue(15.4, "Product 2 (Asia)", "Jan 04");
+        dataset.addValue(21.0, "Product 2 (Asia)", "Feb 04");
+        dataset.addValue(11.1, "Product 2 (Asia)", "Mar 04");
+        dataset.addValue(23.8, "Product 2 (Middle East)", "Jan 04");
+        dataset.addValue(23.4, "Product 2 (Middle East)", "Feb 04");
+        dataset.addValue(19.3, "Product 2 (Middle East)", "Mar 04");
+
+        dataset.addValue(11.9, "Product 3 (US)", "Jan 04");
+        dataset.addValue(31.0, "Product 3 (US)", "Feb 04");
+        dataset.addValue(22.7, "Product 3 (US)", "Mar 04");
+        dataset.addValue(15.3, "Product 3 (Europe)", "Jan 04");
+        dataset.addValue(14.4, "Product 3 (Europe)", "Feb 04");
+        dataset.addValue(25.3, "Product 3 (Europe)", "Mar 04");
+        dataset.addValue(23.9, "Product 3 (Asia)", "Jan 04");
+        dataset.addValue(19.0, "Product 3 (Asia)", "Feb 04");
+        dataset.addValue(10.1, "Product 3 (Asia)", "Mar 04");
+        dataset.addValue(13.2, "Product 3 (Middle East)", "Jan 04");
+        dataset.addValue(15.5, "Product 3 (Middle East)", "Feb 04");
+        dataset.addValue(10.1, "Product 3 (Middle East)", "Mar 04");
+        
+        return dataset;
+    }
+
+    
+	
 	private void initializeView(){
 		
 		loadingDataFromFramesoc();
@@ -390,7 +462,7 @@ public class TedMainView extends ViewPart {
 		txtThreshold.setText("0");
 		treeviewResults.setInput(null);
 		treeviewResults.refresh();
-		txtProcessingView.setText("");
+//		txtProcessingView.setText("");
 		txtDecision.setText("");
 		lblResults.setText("Results");
 		
