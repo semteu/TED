@@ -27,8 +27,11 @@ import fr.inria.soctrace.lib.storage.TraceDBObject;
  */
 public class GStreamerTedIterator extends PageEventIterator {
 	
+	private EventBuilder evBuilder;
+	
 	public GStreamerTedIterator(TraceDBObject traceDB) throws SoCTraceException{
 		super(traceDB);
+		evBuilder = new EventBuilder(traceDB);
 	}
 	
 	@Override
@@ -65,28 +68,36 @@ public class GStreamerTedIterator extends PageEventIterator {
 	 * @throws SoCTraceException
 	 */
 	private List<Event> getEventsByPage(TraceDBObject traceDB, long i) throws SoCTraceException {
-		List<Event> list = new LinkedList<Event>();
+//		List<Event> list = new LinkedList<Event>();
+		List<Event> eventList = null;
 		try {
-			String query = "SELECT ID, TIMESTAMP, EVENT_TYPE_ID FROM EVENT WHERE PAGE="+i+" ORDER BY TIMESTAMP ASC";
-			Map<Integer, IModelElement> etmap = traceDB.getEventTypeCache().getElementMap(EventType.class);
+			
+			String query = "SELECT * FROM EVENT WHERE PAGE=" + i + " ORDER BY TIMESTAMP ASC";
 			Statement stm = traceDB.getConnection().createStatement();
 			ResultSet rs = stm.executeQuery(query);
-			while (rs.next()) {
-				Integer id = rs.getInt(1);
-				Long ts = rs.getLong(2);
-				Integer tid = rs.getInt(3);
-				Event e = new Event(id);
-				EventType et = (EventType)etmap.get(tid); 
-				e.setCategory(et.getCategory());
-				e.setType(et);
-				e.setTimestamp(ts);
-				list.add(e);
-			}
+			
+			eventList = evBuilder.rebuildEvents(rs);
+			
+//			String query = "SELECT ID, TIMESTAMP, EVENT_TYPE_ID FROM EVENT WHERE PAGE="+i+" ORDER BY TIMESTAMP ASC";
+//			Map<Integer, IModelElement> etmap = traceDB.getEventTypeCache().getElementMap(EventType.class);
+//			Statement stm = traceDB.getConnection().createStatement();
+//			ResultSet rs = stm.executeQuery(query);
+//			while (rs.next()) {
+//				Integer id = rs.getInt(1);
+//				Long ts = rs.getLong(2);
+//				Integer tid = rs.getInt(3);
+//				Event e = new Event(id);
+//				EventType et = (EventType)etmap.get(tid); 
+//				e.setCategory(et.getCategory());
+//				e.setType(et);
+//				e.setTimestamp(ts);
+//				list.add(e);
+//			}
 			stm.close();
 		} catch (SQLException e) {
 			throw new SoCTraceException(e);
 		}
-		return list;
+		return eventList;
 	}
 
 }

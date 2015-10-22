@@ -7,6 +7,7 @@
 package fr.ujf.soctrace.tools.analyzer.ted.controller;
 
 import fr.inria.soctrace.lib.model.Trace;
+import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.ujf.soctrace.tools.analyzer.ted.model.TedAdapter;
 
 /**
@@ -28,7 +29,8 @@ public class TedInput {
 		INPUT_BAD_THRESHOLD,
 		INPUT_BAD_REFTRACE,
 		INPUT_BAD_DIAGTRACE,
-		INPUT_DIFF_TRACETYPE;
+		INPUT_DIFF_TRACETYPE,
+		INPUT_NO_DATAMODELSELECTED;
 
 	}
 	
@@ -53,6 +55,8 @@ public class TedInput {
 	public TedAdapter refAdapter;
 	
 	public TedAdapter diagAdapter;
+	
+	public int eventCategory;
 	
 	
 

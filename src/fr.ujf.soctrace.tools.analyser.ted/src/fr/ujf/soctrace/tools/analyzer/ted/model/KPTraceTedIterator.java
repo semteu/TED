@@ -18,10 +18,20 @@ import fr.inria.soctrace.lib.model.Event;
 import fr.inria.soctrace.lib.model.EventProducer;
 import fr.inria.soctrace.lib.model.EventType;
 import fr.inria.soctrace.lib.model.IModelElement;
+import fr.inria.soctrace.lib.model.Link;
+import fr.inria.soctrace.lib.model.PunctualEvent;
+import fr.inria.soctrace.lib.model.State;
+import fr.inria.soctrace.lib.model.Variable;
+import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
 import fr.inria.soctrace.lib.query.EventProducerQuery;
+import fr.inria.soctrace.lib.query.EventQuery;
+import fr.inria.soctrace.lib.query.ValueListString;
 import fr.inria.soctrace.lib.query.iterators.PageEventIterator;
 import fr.inria.soctrace.lib.storage.TraceDBObject;
+import fr.inria.soctrace.lib.storage.utils.ModelElementCache;
+import fr.inria.soctrace.lib.storage.utils.SQLConstants.FramesocTable;
+import fr.inria.soctrace.lib.utils.DeltaManager;
 
 /**
  * @author semteu
@@ -30,7 +40,8 @@ import fr.inria.soctrace.lib.storage.TraceDBObject;
  */
 public class KPTraceTedIterator extends PageEventIterator {
 
-	Map<Integer, EventProducer> epMap = new HashMap<Integer, EventProducer>();
+	private Map<Integer, EventProducer> epMap = new HashMap<Integer, EventProducer>();
+	private EventBuilder evBuilder;
 	
 	/**
 	 * @param traceDB
@@ -43,6 +54,7 @@ public class KPTraceTedIterator extends PageEventIterator {
 		for(EventProducer ep: epl) {
 			epMap.put(ep.getId(), ep);
 		}
+		evBuilder = new EventBuilder(traceDB);
 	}
 	
 	@Override
@@ -66,7 +78,26 @@ public class KPTraceTedIterator extends PageEventIterator {
 			eIterator = eList.iterator();
 			nextPage++;
 		}
-		return eIterator.next();
+//		return eIterator.next();
+		Event e = eIterator.next();
+//		switch(e.getCategory()){
+//		case EventCategory.LINK:
+//			System.out.println("Link -> " + e.getCategory() + " " + (Link) e + " " + ((Link)e).getEventProducer()
+//					+ " " + ((Link)e).getEndProducer());
+//			break;
+//		case EventCategory.STATE:
+//			System.out.println("State -> " + e.getCategory() + " " + (State) e + " " + ((State)e).getEventProducer()
+//					+ " " +((State) e).getImbricationLevel());
+//			break;
+//		case EventCategory.VARIABLE:
+//			System.out.println("Variable -> " + e.getCategory() + " " + (Variable) e + " " + ((Variable)e).getEventProducer()
+//					+ " " + ((Variable) e).getValue());
+//			break;
+//		case EventCategory.PUNCTUAL_EVENT:
+//			System.out.println("Punctual -> " + e.getCategory() + " " + (PunctualEvent)e);
+//			
+//		}
+		return e;
 	}
 
 	
@@ -78,32 +109,39 @@ public class KPTraceTedIterator extends PageEventIterator {
 	 * @throws SoCTraceException
 	 */
 	private List<Event> getEventsByPage(TraceDBObject traceDB, long i) throws SoCTraceException {
-		List<Event> list = new LinkedList<Event>();
+//		List<Event> list = new LinkedList<Event>();
+		List<Event> eventList = null;
 		try {
-			String query = "SELECT ID, TIMESTAMP, EVENT_TYPE_ID, EVENT_PRODUCER_ID FROM EVENT WHERE PAGE="+i+" ORDER BY TIMESTAMP ASC";
-			Map<Integer, IModelElement> etmap = traceDB.getEventTypeCache().getElementMap(EventType.class);
+//			String query = "SELECT ID, TIMESTAMP, EVENT_TYPE_ID, EVENT_PRODUCER_ID FROM EVENT WHERE PAGE="+i+" ORDER BY TIMESTAMP ASC";
+//			Map<Integer, IModelElement> etmap = traceDB.getEventTypeCache().getElementMap(EventType.class);
+//			Statement stm = traceDB.getConnection().createStatement();
+//			ResultSet rs = stm.executeQuery(query);
+			
+			
+			String query = "SELECT * FROM EVENT WHERE PAGE=" + i + " ORDER BY TIMESTAMP ASC";
 			Statement stm = traceDB.getConnection().createStatement();
 			ResultSet rs = stm.executeQuery(query);
-			while (rs.next()) {
-				Integer id = rs.getInt(1);
-				Long ts = rs.getLong(2);
-				Integer tid = rs.getInt(3);
-				Integer pid = rs.getInt(4);
-				Event e = new Event(id);
-				EventType et = (EventType)etmap.get(tid); 
-				e.setCategory(et.getCategory());
-				e.setType(et);
-				e.setEventProducer(epMap.get(pid));
-				e.setTimestamp(ts);
-				list.add(e);
-			}
+			
+			eventList = evBuilder.rebuildEvents(rs);
+			
+//			while (rs.next()) {
+//				Integer id = rs.getInt(1);
+//				Long ts = rs.getLong(2);
+//				Integer tid = rs.getInt(3);
+//				Integer pid = rs.getInt(4);
+//				Event e = new Event(id);
+//				EventType et = (EventType)etmap.get(tid); 
+//				e.setCategory(et.getCategory());
+//				e.setType(et);
+//				e.setEventProducer(epMap.get(pid));
+//				e.setTimestamp(ts);
+//				list.add(e);
+//			}
 			stm.close();
 		} catch (SQLException e) {
 			throw new SoCTraceException(e);
 		}
-		return list;
+		return eventList;
 	}
-
-	
 
 }

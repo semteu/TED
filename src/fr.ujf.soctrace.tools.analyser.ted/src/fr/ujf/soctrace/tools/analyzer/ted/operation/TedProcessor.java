@@ -18,7 +18,7 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Text;
 
-import fr.inria.soctrace.lib.model.EventType;
+import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
@@ -40,6 +40,7 @@ public class TedProcessor {
 	private final Text decisionComponent;
 
 	private TedInput tedInput = null;
+
 	
 	/**
 	 * This attribut allow to construct a results structure for a TreeViewer
@@ -87,32 +88,38 @@ public class TedProcessor {
 		TedAdapter adapter1 = tedInput.refAdapter;
 		TedAdapter adapter2 = tedInput.diagAdapter;
 		TedEvent event =  null;
+
 		try{
 			while(adapter1.hasNext()){
 				event = adapter1.getNext();
-				eventTrace1.add(event);
-				Integer value = mapEventId2OccTrace1.get(event.getEventType().getId());
-				if(value != null){
-					
-					mapEventId2OccTrace1.put(event.getEventType().getId(), value + 1);
-				}
-				else{
-					mapEventId2OccTrace1.put(event.getEventType().getId(), 1);
-					mapEventId2EventDesc.put(event.getEventType().getId(), event.getEventType().getDescription());
+				if(tedInput.eventCategory == EventCategory.PUNCTUAL_EVENT ||
+						event.getEvent().getCategory() == tedInput.eventCategory){
+					eventTrace1.add(event);
+					Integer value = mapEventId2OccTrace1.get(event.getEventType().getId());
+					if(value != null){
+						mapEventId2OccTrace1.put(event.getEventType().getId(), value + 1);
+					}
+					else{
+						mapEventId2OccTrace1.put(event.getEventType().getId(), 1);
+						mapEventId2EventDesc.put(event.getEventType().getId(), event.getEventType().getDescription());
+					}
 				}
 			}
 			while(adapter2.hasNext()){
 				event = adapter2.getNext();
-				eventTrace2.add(event);
-				Integer value = mapEventId2OccTrace2.get(event.getEventType().getId());
-				if(value != null){
-					mapEventId2OccTrace2.put(event.getEventType().getId(), value + 1);
-				}
-				else{
-					mapEventId2OccTrace2.put(event.getEventType().getId(), 1);
-				}
-				if(!mapEventId2EventDesc.containsKey(event.getEventType().getId())){
-					mapEventId2EventDesc.put(event.getEventType().getId(), event.getEventType().getDescription());
+				if(tedInput.eventCategory == EventCategory.PUNCTUAL_EVENT ||
+						event.getEvent().getCategory() == tedInput.eventCategory){
+					eventTrace2.add(event);
+					Integer value = mapEventId2OccTrace2.get(event.getEventType().getId());
+					if(value != null){
+						mapEventId2OccTrace2.put(event.getEventType().getId(), value + 1);
+					}
+					else{
+						mapEventId2OccTrace2.put(event.getEventType().getId(), 1);
+					}
+					if(!mapEventId2EventDesc.containsKey(event.getEventType().getId())){
+						mapEventId2EventDesc.put(event.getEventType().getId(), event.getEventType().getDescription());
+					}
 				}
 			}
 		}
@@ -246,6 +253,19 @@ public class TedProcessor {
 		}
 		else
 			sendToDecisionComponent("The diagnosed trace presents no anomaly");
+		
+		
+		if(occResults != null)
+			occResults.clear();
+		
+		if(dropResults != null)
+			dropResults.clear();
+		
+		if(tempResults != null){
+			for(ArrayList<Double> array: tempResults)
+				array.clear();
+			tempResults.clear();
+		}
 		
 		return TedStatus.RUN_OK;
 		

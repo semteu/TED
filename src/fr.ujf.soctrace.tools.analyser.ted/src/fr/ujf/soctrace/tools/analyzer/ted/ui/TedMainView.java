@@ -39,9 +39,11 @@ import fr.inria.soctrace.framesoc.core.FramesocManager;
 import fr.inria.soctrace.framesoc.ui.model.FolderNode;
 import fr.inria.soctrace.framesoc.ui.providers.TreeContentProvider;
 import fr.inria.soctrace.framesoc.ui.providers.TreeLabelProvider;
+import fr.inria.soctrace.lib.model.Event;
 import fr.inria.soctrace.lib.model.Tool;
 import fr.inria.soctrace.lib.model.Trace;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
+import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.inria.soctrace.lib.query.iterators.EventIterator;
 import fr.inria.soctrace.lib.search.ITraceSearch;
 import fr.inria.soctrace.lib.search.TraceSearch;
@@ -99,9 +101,11 @@ public class TedMainView extends ViewPart {
 	//Trace Selection components
 	private Label lblRefTrace;
 	private Label lblDiagTrace;
+	private Label lblDataModel;
 	
 	private Combo cmbRefTrace;
 	private Combo cmbDiagTrace;
+	private Combo cmbDataModel;
 	
 	//Distance type components selection
 	private Button btnDropDistance;
@@ -247,6 +251,14 @@ public class TedMainView extends ViewPart {
 		cmbDiagTrace.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
 //		cmbDiagTrace.addSelectionListener(listener);
 		
+		lblDataModel = new Label(cmpLeftPart, SWT.NONE);
+		lblDataModel.setLayoutData(new GridData(SWT.RIGHT, SWT.CENTER, false, false, 1, 1));
+		lblDataModel.setText("Data model processing:");
+		
+		cmbDataModel = new Combo(cmpLeftPart, SWT.READ_ONLY);
+		cmbDataModel.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, false, false, 1, 1));
+
+		
 		Group grpFrameAnomalyDetectionType = new Group(cmpLeftPart, SWT.NONE | SWT.NO_BACKGROUND);
 		grpFrameAnomalyDetectionType.setLayout(new GridLayout(1, false));
 		grpFrameAnomalyDetectionType.setLayoutData(new GridData(SWT.FILL, SWT.TOP, true, false, 2, 1));
@@ -368,6 +380,7 @@ public class TedMainView extends ViewPart {
 		
 		initializeTraceCombo(cmbRefTrace);
 		initializeTraceCombo(cmbDiagTrace);
+		initializeDataModelCombo();
 		
 		btnAllAnomalies.setSelection(false);
 		btnAnyAnomaly.setSelection(false);
@@ -392,6 +405,8 @@ public class TedMainView extends ViewPart {
 		
 	}
 	
+	
+	
 	/**
 	 * This method set the input status of the current view
 	 * @return the input status of the view
@@ -409,9 +424,14 @@ public class TedMainView extends ViewPart {
 		if(currentInput.refTrace.getType().getId() != currentInput.diagTrace.getType().getId())
 			return InputStatus.INPUT_DIFF_TRACETYPE;
 		
-		currentInput.threshold = Float.valueOf(txtThreshold.getText());
+		currentInput.eventCategory = cmbDataModel.getSelectionIndex();
+		if(currentInput.eventCategory != EventCategory.LINK && 
+				currentInput.eventCategory != EventCategory.STATE &&
+				currentInput.eventCategory != EventCategory.PUNCTUAL_EVENT){
+			return InputStatus.INPUT_NO_DATAMODELSELECTED;
+		}
 		
-		//TODO: Check if refTrace and diagTrace are the same type
+		currentInput.threshold = Float.valueOf(txtThreshold.getText());
 		
 		if(btnOccDistance.getSelection()){
 			if(currentInput.threshold <= 0)
@@ -484,6 +504,12 @@ public class TedMainView extends ViewPart {
 			MessageDialog.openError(getSite().getShell(), "Parameter Error", 
 					"The traces selected are not the same type !");
 			cmbRefTrace.setFocus();
+			return;
+		}
+		else if(inputStatus == InputStatus.INPUT_NO_DATAMODELSELECTED){
+			MessageDialog.openError(getSite().getShell(), "Parameter Error", 
+					"Bad or no data model processing selected !");
+			cmbDataModel.setFocus();
 			return;
 		}
 		else if (inputStatus == InputStatus.INPUT_NO_OPERATIONSELECTED) {
@@ -570,7 +596,7 @@ public class TedMainView extends ViewPart {
 				});
 
 
-
+				
 				
 				return Status.OK_STATUS;
 				
@@ -589,17 +615,17 @@ public class TedMainView extends ViewPart {
 	private TedAdapter loadNewAdapter(TraceDBObject traceDB, Trace trace) throws SoCTraceException {
 		TedAdapter adapter = null;
 		EventIterator iterator = null;
-		if (trace.getType().getName().startsWith("GStreamer.hadas")) {
+		if (trace.getType().getName().toLowerCase().startsWith("GStreamer.hadas".toLowerCase())) {
 			iterator = new GStreamerTedIterator(traceDB);
 			adapter = new GStreamerTedAdapter(traceDB, iterator);
-		} else if (trace.getType().getName().startsWith("com.st.framesoc.kptrace")
-				|| trace.getType().getName().startsWith("KPTrace")) {
+		} else if (trace.getType().getName().toLowerCase().startsWith("com.st.framesoc.kptrace".toLowerCase())
+				|| trace.getType().getName().toLowerCase().startsWith("KPTrace".toLowerCase())) {
 			iterator = new KPTraceTedIterator(traceDB);
 			adapter = new KPTraceTedAdapter(traceDB, iterator);
 		} else {
 			// Defaut adapter is KPTrace
-			iterator = new GStreamerTedIterator(traceDB);
-			adapter = new GStreamerTedAdapter(traceDB, iterator);
+			iterator = new KPTraceTedIterator(traceDB);
+			adapter = new KPTraceTedAdapter(traceDB, iterator);
 		}
 		return adapter;
 	}
@@ -642,7 +668,7 @@ public class TedMainView extends ViewPart {
 
 	}
 	
-	public void initializeTraceCombo(Combo combo){
+	private void initializeTraceCombo(Combo combo){
 		
 		combo.removeAll();
 		
@@ -652,6 +678,14 @@ public class TedMainView extends ViewPart {
 			Entry<Integer, Trace> entry = itMapTrace.next();
 			combo.add(entry.getValue().getAlias(), entry.getKey());
 		}
+	}
+	
+	private void initializeDataModelCombo(){
+		cmbDataModel.removeAll();
+		cmbDataModel.add("Punctual event", EventCategory.PUNCTUAL_EVENT);
+		cmbDataModel.add("State", EventCategory.STATE);
+		cmbDataModel.add("Link", EventCategory.LINK);
+		
 	}
 	
 	private DataNode[] adapt(DataNode tree){
