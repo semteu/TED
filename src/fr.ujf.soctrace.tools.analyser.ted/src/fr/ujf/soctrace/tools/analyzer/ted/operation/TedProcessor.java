@@ -7,6 +7,8 @@
 package fr.ujf.soctrace.tools.analyzer.ted.operation;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -17,9 +19,12 @@ import java.util.Set;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Text;
+import org.jfree.chart.JFreeChart;
+import org.jfree.experimental.chart.swt.ChartComposite;
 
 import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
+import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBarChartLoader;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
 import fr.ujf.soctrace.tools.analyzer.ted.model.DataNode;
@@ -35,10 +40,12 @@ import fr.ujf.soctrace.tools.analyzer.ted.model.TedEventType;
  */
 public class TedProcessor {
 	
-	private final Text  consoleComponent;
+//	private final Text  consoleComponent;
+	
+	private ChartComposite chartView;
 	
 	private final Text decisionComponent;
-
+	
 	private TedInput tedInput = null;
 
 	
@@ -61,27 +68,20 @@ public class TedProcessor {
 	
 	private List<TedEvent> eventTrace2 = new ArrayList<TedEvent>();
 	
-	public TedProcessor(TedInput input, final Text textbox, final Text txtDecision, DataNode tree){
+	public TedProcessor( TedInput input, ChartComposite chartView, 
+						 final Text txtDecision, DataNode tree){
 		tedInput = input;
 		distanceProcessor = new Distances();
-		this.consoleComponent = textbox;
+		this.chartView = chartView;
 		this.decisionComponent = txtDecision;
 		treeResults = tree;
 	}
 	
 
-//	public Text getTxtConsole() {
-//		return txtConsole;
-//	}
-
-//	public void setTxtConsole(Text txtConsole) {
-//		this.txtConsole = txtConsole;
-//	}
-	
 	/*
 	 * This method construct the list of events in a trace ordered by timestamp
 	 */
-	private void loadEventLists(){
+	private int loadEventLists(IProgressMonitor monitor){
 		mapEventId2OccTrace1.clear();
 		mapEventId2OccTrace2.clear();
 		
@@ -91,6 +91,10 @@ public class TedProcessor {
 
 		try{
 			while(adapter1.hasNext()){
+				
+				if(monitor != null && monitor.isCanceled())
+					return 1;
+							
 				event = adapter1.getNext();
 				if(tedInput.eventCategory == EventCategory.PUNCTUAL_EVENT ||
 						event.getEvent().getCategory() == tedInput.eventCategory){
@@ -106,6 +110,10 @@ public class TedProcessor {
 				}
 			}
 			while(adapter2.hasNext()){
+				
+				if(monitor != null && monitor.isCanceled())
+					return 1;
+				
 				event = adapter2.getNext();
 				if(tedInput.eventCategory == EventCategory.PUNCTUAL_EVENT ||
 						event.getEvent().getCategory() == tedInput.eventCategory){
@@ -126,6 +134,7 @@ public class TedProcessor {
 		catch(SoCTraceException e){
 			e.printStackTrace();
 		}
+		return 0;
 	}
 	
 	
@@ -153,6 +162,13 @@ public class TedProcessor {
 		}
 	}
 	
+	/**
+	 * Method used to process occurrence distance, dropping distance or temporal distance 
+	 * for a job launched from the TED Plug-in 
+	 *   
+	 * @param monitor
+	 * @return
+	 */
 		
 	public TedStatus run(IProgressMonitor monitor){
 		
@@ -163,11 +179,15 @@ public class TedProcessor {
 		boolean statusDropDist = false;
 		boolean statusTempDist = false;
 		
-		loadEventLists();
+		int loadingStatus = loadEventLists(monitor);
 		
 //		System.out.println("Size trace1: "+ eventTrace1.size());
 //		System.out.println("Size trace2: "+ eventTrace2.size());
+		if(monitor != null && monitor.isCanceled() || loadingStatus != 0)
+			return TedStatus.RUN_CANCEL;
 		
+		
+//		Selection of the distance processing
 		switch (tedInput.operation) {
 		
 		case OCCURRENCE_DISTANCE:
@@ -183,7 +203,6 @@ public class TedProcessor {
 			break;
 			
 		case ANY_DISTANCE:
-			sendToConsole("Try any distance ...\n");
 			
 			//Check occurrence distance
 			statusOccDist = processOccurrenceDistance();
@@ -200,13 +219,18 @@ public class TedProcessor {
 			break;
 		
 		case ALL_DISTANCE:
-			sendToConsole("Try all distances ...");
 			
 			//Check occurrence distance
 			statusOccDist = processOccurrenceDistance();
 			
+			if(monitor != null && monitor.isCanceled())
+				return TedStatus.RUN_CANCEL;
+			
 			//check dropping distance
 			statusDropDist = processDroppingDistance();
+			
+			if(monitor != null && monitor.isCanceled())
+				return TedStatus.RUN_CANCEL;
 			
 			//check temporal distance
 			statusTempDist = processTemporalDistance();
@@ -217,6 +241,7 @@ public class TedProcessor {
 			break;
 		}
 		
+		// Output construction for UI 
 		if(statusOccDist && statusDropDist && statusTempDist){
 			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation, crash and Slow stream anomalies");
 			makeTreeResultsFromOccurrenceDistance(treeResults);
@@ -242,10 +267,13 @@ public class TedProcessor {
 		else if(statusOccDist){
 			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation anomaly");
 			makeTreeResultsFromOccurrenceDistance(treeResults);
+			plotOccurenceDistanceResults();
+			
 		}
 		else if(statusDropDist){
 			sendToDecisionComponent("The diagnosed trace presents crash anomaly");
 			makeTreeResultsFromDroppingDistance(treeResults);
+			plotDroppingDistanceResults();
 		}
 		else if(statusTempDist){
 			sendToDecisionComponent("The diagnosed trace presents Slow stream anomaly");
@@ -271,6 +299,10 @@ public class TedProcessor {
 		
 	}
 	
+	
+	/**
+	 * Test method for distances 
+	 */
 	public void run_tests(){
 		
 		//Setting data
@@ -446,16 +478,19 @@ public class TedProcessor {
 		
 	}
 
+	/**
+	 * Method to launch occurrence distance processing
+	 * 
+	 * @return a boolean to indicate if the occurrence distance is null or not
+	 */
 	private boolean processOccurrenceDistance(){
 		boolean status = false;
-		sendToConsole("Processing occurrence distance ...");
+
 //		System.out.println("Executing occurrence distance ...");
 		occResults = distanceProcessor.OccurrenceDistance(tedInput.threshold, 
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
 //		System.out.println(occResults);
-		
-		sendToConsole("Results: " + occResults);
 		
 		for(Integer key: occResults.keySet()){
 //			System.out.println("key: " + key +" distance: " + occResults.get(key));
@@ -465,14 +500,18 @@ public class TedProcessor {
 		return status;
 	}
 	
+	/**
+	 * Method to launch dropping distance processing
+	 * 
+	 * @return a boolean to indicate if the dropping distance is null or not
+	 */
 	private boolean processDroppingDistance(){
 		boolean status = false;
-		sendToConsole("Processing dropping distance ...");
-		//		System.out.println("Executing dropping distance ...");
+
+//		System.out.println("Executing dropping distance ...");
 		dropResults = distanceProcessor.droppingDistance(tedInput.threshold, 
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
-		sendToConsole("Results: " + dropResults);
 //		System.out.println(dropResults);
 		
 		if(dropResults.size() > 0)
@@ -481,37 +520,31 @@ public class TedProcessor {
 		return status;
 	}
 	
+	/**
+	 * Method to launch temporal distance processing
+	 * 
+	 * @return a boolean to indicate if the temporal distance is null or not
+	 */
 	private boolean processTemporalDistance(){
 		boolean status = false;
-		sendToConsole("Processing temporal distance ...");
+
 //		System.out.println("Executing temporal distance ...");
 		tempResults = distanceProcessor.temporalDistance(eventTrace1, 
 				eventTrace2, mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
-		sendToConsole("Results: " + tempResults.get(eventTrace1.size()).
-				get(eventTrace2.size()));
 //		System.out.println(tempResults);
 		
-//		System.out.println("Temporal distance: " + tempResults.get(eventTrace1.size()).
-//				get(eventTrace2.size()));
 		if(tempResults.get(eventTrace1.size()).get(eventTrace2.size()) > tedInput.threshold)
 			status = true;
 		
 		return status;
 	}	
 	
-	
-	private void sendToConsole(final String message){
-		Display.getDefault().syncExec(new Runnable() {
-			
-			@Override
-			public void run() {
-				consoleComponent.setText(consoleComponent.getText() + message + "\n");
-				
-			}
-		});
-	}
-	
+	/**
+	 * Sending a message to decision text component
+	 * 
+	 * @param message
+	 */
 	private void sendToDecisionComponent(final String message){
 		Display.getDefault().syncExec(new Runnable() {
 			
@@ -523,12 +556,21 @@ public class TedProcessor {
 		});
 	}
 	
+	/**
+	 * This method allows to construct tree results from occurrence distance processing
+	 * in order to fill the treeView of TED UI
+	 * 
+	 * @param tree
+	 */
 	private void makeTreeResultsFromOccurrenceDistance(DataNode tree){
 		DataNode root = new DataNode(NodeType.OPERATION, "Occurrence distance");
-		for(Entry<Integer, Float> e: occResults.entrySet()){
+		
+		List<Entry<Integer, Float>> sortedOccDistanceEventList = getSortedOccDistanceEventListByDistance();
+		
+		for(Entry<Integer, Float> e: sortedOccDistanceEventList){
 			float v1 = mapEventId2OccTrace1.get(e.getKey()) == null ? 0 : mapEventId2OccTrace1.get(e.getKey());
 			float v2 = mapEventId2OccTrace2.get(e.getKey()) == null ? 0 : mapEventId2OccTrace2.get(e.getKey());
-			String value = mapEventId2EventDesc.get(e.getKey()) + " :  Trace1 (" + v1  + ") <-> Trace2 (" 
+			String value = "(e"+ e.getKey() +") " + mapEventId2EventDesc.get(e.getKey()) + " :  Trace1 (" + v1  + ") <-> Trace2 (" 
 						   + v2 + ") >> " + e.getValue();
 			DataNode child = new DataNode(value);
 			root.addChild(child);
@@ -536,6 +578,64 @@ public class TedProcessor {
 		tree.addChild(root);
 	}
 	
+	/**
+	 * This method plots event proportion between trace according to occurrence distance
+	 * The plot is done on JFreeChart
+	 * 
+	 */
+	private void plotOccurenceDistanceResults(){
+		//Plot stacked bar chart
+		List<Entry<Integer, Float>> sortedOccDistanceEventList = getSortedOccDistanceEventListByDistance();
+		StackedBarChartLoader chartBuilder = new StackedBarChartLoader(mapEventId2OccTrace1, 
+																	   mapEventId2OccTrace2, sortedOccDistanceEventList, 
+																	   mapEventId2EventDesc, tedInput.refTrace.getAlias(), 
+																	   tedInput.diagTrace.getAlias());
+		JFreeChart chart = chartBuilder.makeStackedChart();
+		plotChart(chart);
+	}
+	
+	/**
+	 * This method plots event proportion between trace according to occurrence distance
+	 * The plot is done on JFreeChart
+	 * 
+	 */
+	private void plotDroppingDistanceResults(){
+		//Plot stacked bar chart
+		
+		StackedBarChartLoader chartBuilder = new StackedBarChartLoader(mapEventId2OccTrace1, 
+																	   mapEventId2OccTrace2, dropResults, 
+																	   mapEventId2EventDesc, tedInput.refTrace.getAlias(), 
+																	   tedInput.diagTrace.getAlias());
+		JFreeChart chart = chartBuilder.makeStackedChart();
+		plotChart(chart);
+	}
+	
+
+	
+	/**
+	 * @return Entry<EventId, Distance> list sorted by distance
+	 */
+	private List<Entry<Integer, Float>> getSortedOccDistanceEventListByDistance() {
+		
+		List<Entry<Integer, Float>> entryList = new ArrayList<Entry<Integer, Float>>(occResults.entrySet());
+		Collections.sort(entryList, new Comparator<Entry<Integer,Float>>(){
+			@Override
+			public int compare(Entry<Integer, Float> entry1,
+					Entry<Integer, Float> entry2) {
+				
+				return entry1.getValue().compareTo(entry2.getValue());
+			}
+			
+		});
+		return entryList;
+	}
+
+	/**
+	 * This method allows to construct tree results from dropping distance processing
+	 * in order to fill the treeView of TED UI
+	 * 
+	 * @param tree
+	 */
 	private void makeTreeResultsFromDroppingDistance(DataNode tree){
 		DataNode root = new DataNode(NodeType.OPERATION, "Dropping distance");
 		
@@ -549,13 +649,7 @@ public class TedProcessor {
 		
 		set2.addAll(dropResults);
 		set2.retainAll(keyset2);
-		
-//		String value = "|{";
-//		for(Integer e: dropResults){
-//			 value += mapEventId2EventDesc.get(e) + ", ";
-//			
-//		}
-		
+				
 		String value = "Events in trace1 not in trace2: ";
 		for(Integer eid: set1){
 			value += mapEventId2EventDesc.get(eid)+ ", ";
@@ -577,12 +671,34 @@ public class TedProcessor {
 		tree.addChild(root);
 	}
 	
+	/**
+	 * This method allows to construct tree results from temporal distance processing
+	 * in order to fill the treeView of TED UI
+	 * 
+	 * @param tree
+	 */
 	private void makeTreeResultsFromTemporalDistance(DataNode tree){
 		DataNode root = new DataNode(NodeType.OPERATION, "Temporal distance");
 		String value = tempResults.get(eventTrace1.size()).get(eventTrace2.size()).toString();
 		DataNode child = new DataNode(value);
 		root.addChild(child);
 		tree.addChild(root);
+	}
+	
+	/**
+	 * The method plot a constructed jfreechart on the Chart composite of TED UI
+	 * @param chart
+	 */
+	private void plotChart(final JFreeChart chart){
+		Display.getDefault().syncExec(new Runnable() {
+			
+			@Override
+			public void run() {
+				chartView.setChart(chart);
+				chartView.forceRedraw();
+				
+			}
+		});
 	}
 	
 }

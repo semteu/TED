@@ -1,14 +1,12 @@
 package fr.ujf.soctrace.tools.analyzer.ted.ui;
 
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.TreeMap;
-
-import javax.xml.crypto.Data;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -20,7 +18,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
-import org.eclipse.swt.events.SelectionListener;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
@@ -36,29 +33,28 @@ import org.eclipse.ui.part.ViewPart;
 import org.jfree.chart.JFreeChart;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
-import org.jfree.data.general.DefaultPieDataset;
-import org.jfree.data.general.PieDataset;
-import org.jfree.data.statistics.HistogramDataset;
-import org.jfree.data.statistics.HistogramType;
 import org.jfree.experimental.chart.swt.ChartComposite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import fr.inria.soctrace.framesoc.core.FramesocManager;
-import fr.inria.soctrace.framesoc.ui.model.FolderNode;
+import fr.inria.soctrace.framesoc.core.bus.FramesocBusTopic;
+import fr.inria.soctrace.framesoc.core.bus.FramesocBusTopicList;
+import fr.inria.soctrace.framesoc.core.bus.IFramesocBusListener;
 import fr.inria.soctrace.framesoc.ui.providers.TreeContentProvider;
 import fr.inria.soctrace.framesoc.ui.providers.TreeLabelProvider;
-import fr.inria.soctrace.lib.model.Event;
 import fr.inria.soctrace.lib.model.Tool;
 import fr.inria.soctrace.lib.model.Trace;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
 import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
+import fr.inria.soctrace.lib.query.TraceQuery;
 import fr.inria.soctrace.lib.query.iterators.EventIterator;
 import fr.inria.soctrace.lib.search.ITraceSearch;
 import fr.inria.soctrace.lib.search.TraceSearch;
 import fr.inria.soctrace.lib.storage.DBObject;
+import fr.inria.soctrace.lib.storage.SystemDBObject;
 import fr.inria.soctrace.lib.storage.TraceDBObject;
-import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBartChartLoader;
+import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBarChartLoader;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedConstants;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
@@ -73,7 +69,7 @@ import fr.ujf.soctrace.tools.analyzer.ted.model.TedAdapter;
 import fr.ujf.soctrace.tools.analyzer.ted.operation.TedProcessor;
 
 
-public class TedMainView extends ViewPart {
+public class TedMainView extends ViewPart implements IFramesocBusListener{
 
 	private final static Logger logger = LoggerFactory.getLogger(TedMainView.class);
 
@@ -81,8 +77,6 @@ public class TedMainView extends ViewPart {
 	 * View ID as defined in the manifest
 	 */
 	public static final String ID = "fr.ujf.soctrace.tools.analyzer.ted.ui.TedMainView"; //$NON-NLS-1$
-	
-	private final int MAX_NUMBER_LINES = 10;
 	
 	/**
 	 * TedTool
@@ -94,6 +88,16 @@ public class TedMainView extends ViewPart {
 	 */
 	
 	private Map<Integer, Trace> mapTraces;
+	
+	/**
+	 * List of traces
+	 */
+	private List<Trace> traces;
+
+	/**
+	 * Manage the bus topics
+	 */
+	private FramesocBusTopicList topics;
 
 	/**
 	 * The input for the TED algorithm
@@ -139,12 +143,12 @@ public class TedMainView extends ViewPart {
 	private Label lblResults;
 	private Label lblDecision;
 	
-	private Text txtProcessingView;
+
 	private TreeViewer treeviewResults;
 	private Text txtDecision; 
 	
 	
-	private ChartComposite chartView;
+	private ChartComposite barChartView;
 	
 	private DataNode treeNode;
 	
@@ -165,6 +169,11 @@ public class TedMainView extends ViewPart {
 		//Data structures initialization
 		mapTraces = new TreeMap<Integer, Trace>();
 		currentInput = new TedInput();
+		
+		// Register the topic necessary to synchronize traces
+		topics = new FramesocBusTopicList(this);
+		topics.addTopic(FramesocBusTopic.TOPIC_UI_TRACES_SYNCHRONIZED);
+		topics.registerAll();
 		
 		//Loading data
 		loadingDataFromFramesoc();
@@ -358,16 +367,20 @@ public class TedMainView extends ViewPart {
 		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
 		lblProcessingView.setText("Processing View");
 		
+		//TODO:: Remove txtProcessing view
 //		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
 //		GridData gData =  new GridData(SWT.FILL, SWT.CENTER, true, false, 2, 1);
 //		gData.heightHint = MAX_NUMBER_LINES * txtProcessingView.getLineHeight();
 //		txtProcessingView.setLayoutData(gData);
 
-		StackedBartChartLoader st = new StackedBartChartLoader();		
-		final JFreeChart chart = st.createChart(createDataset());
-		chartView = new ChartComposite(cmpRightPart, SWT.NONE);
-		chartView.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
-		chartView.setChart(chart);
+		
+		Composite chartCmpLayout = new Composite(cmpRightPart, SWT.NONE);
+		chartCmpLayout.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
+		chartCmpLayout.setLayout(new GridLayout(2, false));
+		
+		barChartView = new ChartComposite(chartCmpLayout, SWT.NONE);
+		barChartView.setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 1, 1));
+		barChartView.setChart(null);
 		
 		
 		
@@ -394,62 +407,11 @@ public class TedMainView extends ViewPart {
 				
 	}
 	
-   /**
-     * Creates a sample dataset.
-     * 
-     * @return A sample dataset.
-     */
-    public CategoryDataset createDataset() {
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
-
-        dataset.addValue(20.3, "Product 1 (US)", "Jan 04");
-        dataset.addValue(27.2, "Product 1 (US)", "Feb 04");
-        dataset.addValue(19.7, "Product 1 (US)", "Mar 04");
-        dataset.addValue(19.4, "Product 1 (Europe)", "Jan 04");
-        dataset.addValue(10.9, "Product 1 (Europe)", "Feb 04");
-        dataset.addValue(18.4, "Product 1 (Europe)", "Mar 04");
-        dataset.addValue(16.5, "Product 1 (Asia)", "Jan 04");
-        dataset.addValue(15.9, "Product 1 (Asia)", "Feb 04");
-        dataset.addValue(16.1, "Product 1 (Asia)", "Mar 04");
-        dataset.addValue(13.2, "Product 1 (Middle East)", "Jan 04");
-        dataset.addValue(14.4, "Product 1 (Middle East)", "Feb 04");
-        dataset.addValue(13.7, "Product 1 (Middle East)", "Mar 04");
-
-        dataset.addValue(23.3, "Product 2 (US)", "Jan 04");
-        dataset.addValue(16.2, "Product 2 (US)", "Feb 04");
-        dataset.addValue(28.7, "Product 2 (US)", "Mar 04");
-        dataset.addValue(12.7, "Product 2 (Europe)", "Jan 04");
-        dataset.addValue(17.9, "Product 2 (Europe)", "Feb 04");
-        dataset.addValue(12.6, "Product 2 (Europe)", "Mar 04");
-        dataset.addValue(15.4, "Product 2 (Asia)", "Jan 04");
-        dataset.addValue(21.0, "Product 2 (Asia)", "Feb 04");
-        dataset.addValue(11.1, "Product 2 (Asia)", "Mar 04");
-        dataset.addValue(23.8, "Product 2 (Middle East)", "Jan 04");
-        dataset.addValue(23.4, "Product 2 (Middle East)", "Feb 04");
-        dataset.addValue(19.3, "Product 2 (Middle East)", "Mar 04");
-
-        dataset.addValue(11.9, "Product 3 (US)", "Jan 04");
-        dataset.addValue(31.0, "Product 3 (US)", "Feb 04");
-        dataset.addValue(22.7, "Product 3 (US)", "Mar 04");
-        dataset.addValue(15.3, "Product 3 (Europe)", "Jan 04");
-        dataset.addValue(14.4, "Product 3 (Europe)", "Feb 04");
-        dataset.addValue(25.3, "Product 3 (Europe)", "Mar 04");
-        dataset.addValue(23.9, "Product 3 (Asia)", "Jan 04");
-        dataset.addValue(19.0, "Product 3 (Asia)", "Feb 04");
-        dataset.addValue(10.1, "Product 3 (Asia)", "Mar 04");
-        dataset.addValue(13.2, "Product 3 (Middle East)", "Jan 04");
-        dataset.addValue(15.5, "Product 3 (Middle East)", "Feb 04");
-        dataset.addValue(10.1, "Product 3 (Middle East)", "Mar 04");
-        
-        return dataset;
-    }
-
-    
-	
 	private void initializeView(){
 		
-		loadingDataFromFramesoc();
+//		loadingDataFromFramesoc();
 		
+		refreshTraceList();
 		initializeTraceCombo(cmbRefTrace);
 		initializeTraceCombo(cmbDiagTrace);
 		initializeDataModelCombo();
@@ -462,9 +424,11 @@ public class TedMainView extends ViewPart {
 		txtThreshold.setText("0");
 		treeviewResults.setInput(null);
 		treeviewResults.refresh();
-//		txtProcessingView.setText("");
 		txtDecision.setText("");
 		lblResults.setText("Results");
+		barChartView.setChart(null);
+		barChartView.forceRedraw();
+		
 		
 	}
 	
@@ -543,7 +507,9 @@ public class TedMainView extends ViewPart {
 		
 	}
 	
-	
+	/**
+	 * Method used to launch job for processing distance
+	 */
 	private void runDiagnostic(){
 		
 		InputStatus inputStatus = checkInput();
@@ -597,8 +563,10 @@ public class TedMainView extends ViewPart {
 			return;
 		}
 		
-		txtProcessingView.setText("");
 		txtDecision.setText("");
+		barChartView.setChart(null);
+		barChartView.forceRedraw();
+		
 		//Launch TED algorithm processing
 		//Launch a new job
 		
@@ -623,17 +591,12 @@ public class TedMainView extends ViewPart {
 					
 					treeNode = new DataNode("Comparison results");
 					
-//					while(currentInput.refAdapter.hasNext()){
-//						TedEvent tedEvent = currentInput.refAdapter.getNext();
-//						System.out.println(tedEvent);
-//					}
-					
-					final TedProcessor processor = new TedProcessor(currentInput, txtProcessingView,
+										
+					final TedProcessor processor = new TedProcessor(currentInput, barChartView,
 							txtDecision, treeNode);
 					
 					final TedStatus status = processor.run(monitor);
-
-					
+										
 					traceDB1.close();
 					traceDB2.close();
 					monitor.done();
@@ -774,5 +737,72 @@ public class TedMainView extends ViewPart {
 		
 	}
 	
-
+	@Override
+	public void dispose(){
+		// Unregister subscribed topics
+		if(topics != null){
+			topics.unregisterAll();
+		}
+		
+		super.dispose();
+	}
+	
+	
+	/**
+	 * Will only receive message of the topic we subscribed to (i.e.
+	 * TOPIC_UI_TRACES_SYNCHRONIZED). If we subscribed to more than one topics,
+	 * it would have been necessary to check the received type of the message.
+	 */
+	@Override
+	public void handle(FramesocBusTopic topic, Object data){
+		// Update trace list 
+		refreshTraceList();
+	}
+	
+	/**
+	 * Refresh trace list
+	 */
+	void refreshTraceList(){
+		try{
+			// Reload trace List
+			loadTraces();
+		}
+		catch(SoCTraceException e){
+			e.printStackTrace();
+		}
+		
+		// Update the displayed trace list
+		mapTraces.clear();
+		
+		//Get traces from Framesoc database
+		int key = 0;
+		for(Trace trace : traces){
+			mapTraces.put(key, trace);
+			key++;	
+		}
+		
+		initializeTraceCombo(cmbRefTrace);
+		initializeTraceCombo(cmbDiagTrace);
+		
+	}
+	
+	/**
+	 * Load traces present in the database
+	 * 
+	 * @throws SoCTraceException
+	 */
+	public void loadTraces() throws SoCTraceException {
+		final SystemDBObject sysDB = FramesocManager.getInstance().getSystemDB();
+		final TraceQuery traceQuery = new TraceQuery(sysDB);
+		traces = traceQuery.getList();
+		sysDB.close();
+		
+		// Sort alphabetically
+		Collections.sort(traces, new Comparator<Trace>(){
+			@Override
+			public int compare(final Trace arg0, final Trace arg1){
+				return arg0.getAlias().compareTo(arg1.getAlias());
+			}
+		});
+	}
 }
