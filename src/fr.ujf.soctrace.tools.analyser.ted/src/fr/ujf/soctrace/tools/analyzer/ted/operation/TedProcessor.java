@@ -17,6 +17,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.swt.SWT;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Text;
 import org.jfree.chart.JFreeChart;
@@ -24,6 +28,7 @@ import org.jfree.experimental.chart.swt.ChartComposite;
 
 import fr.inria.soctrace.lib.model.utils.ModelConstants.EventCategory;
 import fr.inria.soctrace.lib.model.utils.SoCTraceException;
+import fr.inria.soctrace.lib.utils.DeltaManager;
 import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBarChartLoader;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
@@ -141,7 +146,8 @@ public class TedProcessor {
 	private void loadEventListsForTest(List<TedEvent> trace1, List<TedEvent> trace2){
 		mapEventId2OccTrace1.clear();
 		mapEventId2OccTrace2.clear();
-
+		DeltaManager dm = new DeltaManager();
+		dm.start();
 		for(TedEvent e: trace1){
 			Integer value = mapEventId2OccTrace1.get(e.getEventType().getId());
 			if(value != null){
@@ -151,6 +157,9 @@ public class TedProcessor {
 				mapEventId2OccTrace1.put(e.getEventType().getId(), 1);
 			}
 		}
+		dm.end("Loading ref. trace: ");
+		
+		dm.start();
 		for(TedEvent e: trace2){
 			Integer value = mapEventId2OccTrace2.get(e.getEventType().getId());
 			if(value != null){
@@ -160,6 +169,7 @@ public class TedProcessor {
 				mapEventId2OccTrace2.put(e.getEventType().getId(), 1);
 			}
 		}
+		dm.end("Loading susp. trace: ");
 	}
 	
 	/**
@@ -243,44 +253,43 @@ public class TedProcessor {
 		
 		// Output construction for UI 
 		if(statusOccDist && statusDropDist && statusTempDist){
-			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation, crash and Slow stream anomalies");
+			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation, crash and Slow stream anomalies", 1);
 			makeTreeResultsFromOccurrenceDistance(treeResults);
 			makeTreeResultsFromDroppingDistance(treeResults);
 			makeTreeResultsFromTemporalDistance(treeResults);
 			
 		}
 		else if(statusOccDist && statusDropDist){
-			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation and crash anomalies");
+			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation and crash anomalies", 1);
 			makeTreeResultsFromOccurrenceDistance(treeResults);
 			makeTreeResultsFromDroppingDistance(treeResults);
 		}
 		else if(statusOccDist && statusTempDist){
-			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation and Slow stream anomalies");
+			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation and Slow stream anomalies", 1);
 			makeTreeResultsFromOccurrenceDistance(treeResults);
 			makeTreeResultsFromTemporalDistance(treeResults);
 		}
 		else if(statusDropDist && statusTempDist){
-			sendToDecisionComponent("The diagnosed trace presents crash and Slow stream anomalies");
+			sendToDecisionComponent("The diagnosed trace presents crash and Slow stream anomalies", 1);
 			makeTreeResultsFromDroppingDistance(treeResults);
 			makeTreeResultsFromTemporalDistance(treeResults);
 		}
 		else if(statusOccDist){
-			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation anomaly");
+			sendToDecisionComponent("The diagnosed trace presents A/V/S Desynchronisation anomaly", 1);
 			makeTreeResultsFromOccurrenceDistance(treeResults);
 			plotOccurenceDistanceResults();
-			
 		}
 		else if(statusDropDist){
-			sendToDecisionComponent("The diagnosed trace presents crash anomaly");
+			sendToDecisionComponent("The diagnosed trace presents crash anomaly", 1);
 			makeTreeResultsFromDroppingDistance(treeResults);
 			plotDroppingDistanceResults();
 		}
 		else if(statusTempDist){
-			sendToDecisionComponent("The diagnosed trace presents Slow stream anomaly");
+			sendToDecisionComponent("The diagnosed trace presents Slow stream anomaly", 1);
 			makeTreeResultsFromTemporalDistance(treeResults);
 		}
 		else
-			sendToDecisionComponent("The diagnosed trace presents no anomaly");
+			sendToDecisionComponent("The diagnosed trace presents no anomaly", 0);
 		
 		
 		if(occResults != null)
@@ -487,9 +496,11 @@ public class TedProcessor {
 		boolean status = false;
 
 //		System.out.println("Executing occurrence distance ...");
+		DeltaManager dm = new DeltaManager();
+		dm.start();
 		occResults = distanceProcessor.OccurrenceDistance(tedInput.threshold, 
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
-		
+		dm.endMessage("occ. distance: ");
 //		System.out.println(occResults);
 		
 		for(Integer key: occResults.keySet()){
@@ -508,10 +519,13 @@ public class TedProcessor {
 	private boolean processDroppingDistance(){
 		boolean status = false;
 
+		DeltaManager dm = new DeltaManager();
+		dm.start();
 //		System.out.println("Executing dropping distance ...");
 		dropResults = distanceProcessor.droppingDistance(tedInput.threshold, 
 				mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
+		dm.endMessage("drop. distance: ");
 //		System.out.println(dropResults);
 		
 		if(dropResults.size() > 0)
@@ -527,11 +541,13 @@ public class TedProcessor {
 	 */
 	private boolean processTemporalDistance(){
 		boolean status = false;
-
+		DeltaManager dm = new DeltaManager();
+		dm.start();
 //		System.out.println("Executing temporal distance ...");
 		tempResults = distanceProcessor.temporalDistance(eventTrace1, 
 				eventTrace2, mapEventId2OccTrace1, mapEventId2OccTrace2);
 		
+		dm.end("temp. distance");
 //		System.out.println(tempResults);
 		
 		if(tempResults.get(eventTrace1.size()).get(eventTrace2.size()) > tedInput.threshold)
@@ -545,11 +561,24 @@ public class TedProcessor {
 	 * 
 	 * @param message
 	 */
-	private void sendToDecisionComponent(final String message){
+	private void sendToDecisionComponent(final String message, final int status){
 		Display.getDefault().syncExec(new Runnable() {
 			
 			@Override
 			public void run() {
+				FontData[] fontData = decisionComponent.getFont().getFontData();
+				fontData[0].setHeight(9);
+				fontData[0].setStyle(1);
+				
+				if(status == 1){	
+					decisionComponent.setForeground(Display.getCurrent().getSystemColor(SWT.COLOR_RED));
+				}
+				else{
+					decisionComponent.setForeground(Display.getCurrent().getSystemColor(SWT.COLOR_GREEN));
+				}
+				
+				decisionComponent.setFont( new Font(Display.getCurrent(), fontData[0]));
+
 				decisionComponent.setText(message);
 				
 			}
@@ -565,12 +594,12 @@ public class TedProcessor {
 	private void makeTreeResultsFromOccurrenceDistance(DataNode tree){
 		DataNode root = new DataNode(NodeType.OPERATION, "Occurrence distance");
 		
-		List<Entry<Integer, Float>> sortedOccDistanceEventList = getSortedOccDistanceEventListByDistance();
+		List<Entry<Integer, Float>> sortedOccDistanceEventList = getDistanceEventListSortedByDistance(occResults);
 		
 		for(Entry<Integer, Float> e: sortedOccDistanceEventList){
 			float v1 = mapEventId2OccTrace1.get(e.getKey()) == null ? 0 : mapEventId2OccTrace1.get(e.getKey());
 			float v2 = mapEventId2OccTrace2.get(e.getKey()) == null ? 0 : mapEventId2OccTrace2.get(e.getKey());
-			String value = "(e"+ e.getKey() +") " + mapEventId2EventDesc.get(e.getKey()) + " :  Trace1 (" + v1  + ") <-> Trace2 (" 
+			String value = "(e"+ e.getKey() +") " + mapEventId2EventDesc.get(e.getKey()) + " :  ref. trace (" + v1  + ") <-> susp. trace (" 
 						   + v2 + ") >> " + e.getValue();
 			DataNode child = new DataNode(value);
 			root.addChild(child);
@@ -585,7 +614,7 @@ public class TedProcessor {
 	 */
 	private void plotOccurenceDistanceResults(){
 		//Plot stacked bar chart
-		List<Entry<Integer, Float>> sortedOccDistanceEventList = getSortedOccDistanceEventListByDistance();
+		List<Entry<Integer, Float>> sortedOccDistanceEventList = getDistanceEventListSortedByDistance(occResults);
 		StackedBarChartLoader chartBuilder = new StackedBarChartLoader(mapEventId2OccTrace1, 
 																	   mapEventId2OccTrace2, sortedOccDistanceEventList, 
 																	   mapEventId2EventDesc, tedInput.refTrace.getAlias(), 
@@ -593,6 +622,7 @@ public class TedProcessor {
 		JFreeChart chart = chartBuilder.makeStackedChart();
 		plotChart(chart);
 	}
+	
 	
 	/**
 	 * This method plots event proportion between trace according to occurrence distance
@@ -615,9 +645,9 @@ public class TedProcessor {
 	/**
 	 * @return Entry<EventId, Distance> list sorted by distance
 	 */
-	private List<Entry<Integer, Float>> getSortedOccDistanceEventListByDistance() {
+	private List<Entry<Integer, Float>> getDistanceEventListSortedByDistance(Map<Integer, Float> eventDistances) {
 		
-		List<Entry<Integer, Float>> entryList = new ArrayList<Entry<Integer, Float>>(occResults.entrySet());
+		List<Entry<Integer, Float>> entryList = new ArrayList<Entry<Integer, Float>>(eventDistances.entrySet());
 		Collections.sort(entryList, new Comparator<Entry<Integer,Float>>(){
 			@Override
 			public int compare(Entry<Integer, Float> entry1,

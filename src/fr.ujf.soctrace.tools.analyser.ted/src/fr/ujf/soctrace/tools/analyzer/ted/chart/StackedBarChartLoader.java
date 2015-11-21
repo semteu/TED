@@ -133,8 +133,8 @@ public class StackedBarChartLoader {
 			prop1 = n1/(float)(n1 + n2);
 			prop2 = n2/(float)(n1 + n2);
 			
-			System.out.println(mapTedEventIdToEventDescr.get(key) + ": " + prop1);
-			System.out.println(mapTedEventIdToEventDescr.get(key) + ": " + prop2);
+//			System.out.println(mapTedEventIdToEventDescr.get(key) + ": " + prop1);
+//			System.out.println(mapTedEventIdToEventDescr.get(key) + ": " + prop2);
 			
 			
 			dataset.addValue(prop1, 

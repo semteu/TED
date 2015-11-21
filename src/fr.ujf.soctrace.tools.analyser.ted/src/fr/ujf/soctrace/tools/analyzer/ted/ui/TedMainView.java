@@ -30,9 +30,6 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Text;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.ui.part.ViewPart;
-import org.jfree.chart.JFreeChart;
-import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.experimental.chart.swt.ChartComposite;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +107,6 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 	
 	// Header components
 	private Label lblTitle;
-	private Label lblDescription;
 	
 	//Trace Selection components
 	private Label lblRefTrace;
@@ -139,7 +135,7 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 	private Button btnReset;
 	
 	//Result view 
-	private Label lblProcessingView;
+	private Label lblChartView;
 	private Label lblResults;
 	private Label lblDecision;
 	
@@ -244,11 +240,10 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 		
 		lblTitle =  new Label(cmpHeaderContainer, SWT.NONE);
 		lblTitle.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, true, false, 1, 1));
-		lblTitle.setText("TED - Trace Diagnosis");
-		lblDescription = new Label(cmpHeaderContainer, SWT.NONE);
-		lblDescription.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, true, false, 1, 1));
-		lblDescription.setText("Description: ...");
-		
+		FontData[] fontData = lblTitle.getFont().getFontData();
+		fontData[0].setHeight(14);
+		lblTitle.setFont( new Font(display, fontData[0]));
+		lblTitle.setText("TED - Trace Diagnosis");		
 	}
 	
 	
@@ -363,9 +358,9 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 		txtDecision.setLayoutData(new GridData(SWT.FILL, SWT.CENTER, true, false, 1, 1));
 		txtDecision.setText("");
 		
-		lblProcessingView = new Label(cmpRightPart, SWT.NONE);
-		lblProcessingView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
-		lblProcessingView.setText("Processing View");
+		lblChartView = new Label(cmpRightPart, SWT.NONE);
+		lblChartView.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, true, false, 2, 1));
+		lblChartView.setText("Result chart view");
 		
 		//TODO:: Remove txtProcessing view
 //		txtProcessingView =  new Text(cmpRightPart, SWT.BORDER | SWT.WRAP | SWT.V_SCROLL | SWT.READ_ONLY);
@@ -388,9 +383,9 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 		cmpCommandLayout.setLayout(new GridLayout(2, false));
 		cmpCommandLayout.setLayoutData(new GridData(SWT.RIGHT, SWT.FILL, true, false, 2, 1));
 		
-		btnSave =  new Button(cmpCommandLayout, SWT.NONE);
-		btnSave.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
-		btnSave.setText("Save");
+//		btnSave =  new Button(cmpCommandLayout, SWT.NONE);
+//		btnSave.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
+//		btnSave.setText("Save");
 		
 		btnReset =  new Button(cmpCommandLayout, SWT.NONE);
 		btnReset.setLayoutData(new GridData(SWT.CENTER, SWT.CENTER, false, false, 1, 1));
