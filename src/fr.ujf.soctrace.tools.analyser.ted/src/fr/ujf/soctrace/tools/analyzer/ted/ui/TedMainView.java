@@ -19,6 +19,8 @@ import org.eclipse.swt.custom.SashForm;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.graphics.Color;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
@@ -51,7 +53,6 @@ import fr.inria.soctrace.lib.search.TraceSearch;
 import fr.inria.soctrace.lib.storage.DBObject;
 import fr.inria.soctrace.lib.storage.SystemDBObject;
 import fr.inria.soctrace.lib.storage.TraceDBObject;
-import fr.ujf.soctrace.tools.analyzer.ted.chart.StackedBarChartLoader;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedConstants;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedInput;
 import fr.ujf.soctrace.tools.analyzer.ted.controller.TedStatus;
@@ -131,7 +132,6 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 	
 	//Command buttons components
 	private Button btnDiagnose;
-	private Button btnSave;
 	private Button btnReset;
 	
 	//Result view 
@@ -673,7 +673,7 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 	@Override
 	public void createPartControl(Composite parent) {
 		
-		System.out.println("Initializing TedMainView components !");
+//		System.out.println("Initializing TedMainView components !");
 		parent.setLayout(new GridLayout(1, false));
 		
 		//Drawing the header part of the view

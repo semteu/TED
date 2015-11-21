@@ -182,7 +182,7 @@ public class TedProcessor {
 		
 	public TedStatus run(IProgressMonitor monitor){
 		
-		System.out.println("ProcessorRunning ...");
+//		System.out.println("ProcessorRunning ...");
 //		run_tests();
 //		return TedStatus.RUN_OK;
 		boolean statusOccDist = false;
