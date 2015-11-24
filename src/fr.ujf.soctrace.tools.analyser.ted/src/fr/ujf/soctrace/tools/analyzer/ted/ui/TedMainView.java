@@ -700,6 +700,9 @@ public class TedMainView extends ViewPart implements IFramesocBusListener{
 	
 	private void initializeTraceCombo(Combo combo){
 		
+		if(combo == null)
+			return;
+		
 		combo.removeAll();
 		
 		Iterator< Entry<Integer, Trace> > itMapTrace = mapTraces.entrySet().iterator();
